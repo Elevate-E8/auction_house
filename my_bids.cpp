@@ -262,7 +262,7 @@ int main() {
                         std::cout << "    <form class='inline-form' action='bid.cgi' method='post'>\n";
                         std::cout << "      <input type='hidden' name='item_id' value='" << item_id << "'>\n";
                         std::cout << "      <label class='visually-hidden' for='bid_" << item_id << "'>Increase max bid</label>\n";
-                        std::cout << "      <input id='bid_" << item_id << "' name='bid_amount' type='number' step='0.01' min='0' placeholder='Enter new max' required>\n";
+                        std::cout << "      <input id='bid_" << item_id << "' name='bid_amount' type='number' step='0.01' min='" << highest << "' placeholder='Enter new max' required>\n";
                         std::cout << "      <button class='btn primary' type='submit'>Increase</button>\n";
                         std::cout << "    </form>\n";
                         std::cout << "  </td>\n";
