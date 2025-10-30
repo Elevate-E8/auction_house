@@ -9,7 +9,7 @@
 int main() {
     std::cout << "Content-type: text/html\n\n";
 
-    // --- SESSION CHECK (replaces manual cookie + SQL) ---
+    // --- SESSION CHECK ---
     std::string userEmail;
     bool isLoggedIn = isUserLoggedIn(userEmail);
 
@@ -155,8 +155,8 @@ int main() {
 
     if (isLoggedIn) {
         std::cout << "  <div class='user-info'>\n"
-            "    ✓ Logged in as: <strong>" << userEmail << "</strong>\n"
-            "  </div>\n";
+            << "    ✓ Logged in as: <strong>" << htmlEscape(userEmail) << "</strong>\n"
+            << "  </div>\n";
     }
 
     std::cout << R"(  <section class="card">

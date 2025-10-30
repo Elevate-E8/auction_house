@@ -6,7 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 
-// -------------------- Render Form --------------------
+// -------------------- Login Form --------------------
 void renderLoginForm(const std::string& errorMsg = "") {
     sendHTMLHeader();
     printHead("Login · Team Elevate", "auth");
@@ -35,7 +35,7 @@ void renderLoginForm(const std::string& errorMsg = "") {
     printTail("auth");
 }
 
-// -------------------- Render Success --------------------
+// -------------------- Login Success --------------------
 void renderLoginSuccess(const std::string& email, const std::string& sessionToken) {
     std::cout << "Content-Type: text/html\n" 
         << "Set-Cookie: session_token=" << sessionToken << "; Path=/; HttpOnly; SameSite=Lax\n\n";
@@ -44,7 +44,7 @@ void renderLoginSuccess(const std::string& email, const std::string& sessionToke
     std::cout
         << "    <section class='card' role='status' aria-live='polite'>\n"
         << "      <h1>✓ Login successful</h1>\n"
-        << "      <div class='success'>Signed in as <strong>" << email << "</strong>.</div>\n"
+        << "      <div class='success'>Signed in as <strong>" << htmlEscape(email) << "</strong>.</div>\n"
         << "      <p class='muted'>Redirecting to the homepage…</p>\n"
         << "      <meta http-equiv='refresh' content='2;url=/~elevate/cgi/index.cgi'>\n"
         << "      <a class='btn' href='/~elevate/cgi/index.cgi'>Go to Home</a>\n"

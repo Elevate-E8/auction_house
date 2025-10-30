@@ -19,6 +19,8 @@ MYSQL* createDBConnection();
 // Frees a DB connection safely (nullptr-safe).
 void closeDBConnection(MYSQL* conn);
 
+std::string htmlEscape(const std::string& s);
+
 // URL-decodes POST form-encoded strings (replaces %xx and +).
 std::string urlDecode(const std::string& str);
 

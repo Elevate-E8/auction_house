@@ -1,10 +1,61 @@
 #include <iostream>
 #include <cstdlib>
 #include <string>
+#include <vector>
+#include <functional>
 #include <mysql/mysql.h>
 #include <cstring>
 
 #include "utils.hpp"
+
+// -----------------------------------------------------------------------------
+// Prepared-Statement Query
+// -----------------------------------------------------------------------------
+bool runQueryAndPrint(MYSQL* conn, const std::string& sql, MYSQL_BIND* params, unsigned int paramCount, const std::function<void(MYSQL_BIND*, unsigned long*)>& printRow, unsigned int expectedCols) {
+    MYSQL_STMT* stmt = mysql_stmt_init(conn);
+    if (!stmt) return false;
+    if (mysql_stmt_prepare(stmt, sql.c_str(), sql.size()) != 0) {
+        mysql_stmt_close(stmt);
+        return false;
+    }
+    if (paramCount > 0 && mysql_stmt_bind_param(stmt, params) != 0) {
+        mysql_stmt_close(stmt);
+        return false;
+    }
+    if (mysql_stmt_execute(stmt) != 0) {
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    MYSQL_RES* meta = mysql_stmt_result_metadata(stmt);
+    if (!meta) { mysql_stmt_close(stmt); return false; }
+    unsigned int numCols = mysql_num_fields(meta);
+    if (expectedCols > 0 && numCols != expectedCols) numCols = expectedCols;
+
+    std::vector<std::vector<char>> buffers(numCols, std::vector<char>(256));
+    std::vector<unsigned long> lengths(numCols);
+    std::vector<MYSQL_BIND> result(numCols);
+    memset(result.data(), 0, sizeof(MYSQL_BIND) * numCols);
+    for (unsigned int i = 0; i < numCols; ++i) {
+        result[i].buffer_type = MYSQL_TYPE_STRING;
+        result[i].buffer = buffers[i].data();
+        result[i].buffer_length = buffers[i].size();
+        result[i].length = &lengths[i];
+    }
+
+    mysql_stmt_bind_result(stmt, result.data());
+    mysql_stmt_store_result(stmt);
+
+    bool any = false;
+    while (mysql_stmt_fetch(stmt) == 0) {
+        any = true;
+        printRow(result.data(), lengths.data());
+    }
+
+    mysql_free_result(meta);
+    mysql_stmt_close(stmt);
+    return any;
+}
 
 int main() {
     std::cout << "Content-type: text/html\n\n";
@@ -14,24 +65,28 @@ int main() {
     int userId = -1;
 
     if (!isUserLoggedIn(userEmail)) {
-        std::cout << "<!DOCTYPE html><html><head>"
-            << "<meta http-equiv='refresh' content='0;url=login.cgi'>"
-            << "</head><body></body></html>\n";
+        std::cout << "<!DOCTYPE html><html><head>" << "<meta http-equiv='refresh' content='0;url=login.cgi'>" << "</head><body></body></html>\n";
         return 0;
     }
 
-    // Lookup user_id (for numeric queries)
+    // Lookup user_id
     MYSQL* idConn = createDBConnection();
     if (idConn) {
-        const std::string query =
-            "SELECT user_id FROM users WHERE user_email='" + userEmail + "' LIMIT 1";
-        if (mysql_query(idConn, query.c_str()) == 0) {
-            MYSQL_RES* res = mysql_store_result(idConn);
-            if (res) {
-                MYSQL_ROW row = mysql_fetch_row(res);
-                if (row && row[0]) userId = std::stoi(row[0]);
-                mysql_free_result(res);
+        const char* sql = "SELECT user_id FROM users WHERE user_email=? LIMIT 1";
+        MYSQL_STMT* stmt = mysql_stmt_init(idConn);
+        if (stmt && mysql_stmt_prepare(stmt, sql, strlen(sql)) == 0) {
+            MYSQL_BIND p{}; memset(&p, 0, sizeof(p));
+            p.buffer_type = MYSQL_TYPE_STRING;
+            p.buffer = (char*)userEmail.c_str();
+            p.buffer_length = userEmail.size();
+            mysql_stmt_bind_param(stmt, &p);
+            if (mysql_stmt_execute(stmt) == 0) {
+                MYSQL_BIND r{}; memset(&r, 0, sizeof(r));
+                long id = 0; r.buffer_type = MYSQL_TYPE_LONG; r.buffer = &id;
+                mysql_stmt_bind_result(stmt, &r);
+                if (mysql_stmt_fetch(stmt) == 0) userId = id;
             }
+            mysql_stmt_close(stmt);
         }
         closeDBConnection(idConn);
     }
@@ -48,9 +103,9 @@ int main() {
         return 0;
     }
 
-
-    // ==================== HTML HEAD + HEADER (exact designer CSS/markup) ====================
-    /* ---------- HTML OUTPUT (Full Frontend Layout) ---------- */
+    // -------------------------------------------------------------------------
+    // HTML OUTPUT
+    // -------------------------------------------------------------------------
     std::cout << R"(<!doctype html>
 <html lang="en">
 <head>
@@ -59,7 +114,6 @@ int main() {
   <meta http-equiv="refresh" content="305">
   <title>Team Elevate — My Transactions</title>
   <style>
-    /* ===== Theme & Resets ================================================= */
     :root {
       --ink: #0f172a;
       --muted: #475569;
@@ -90,8 +144,6 @@ int main() {
       transition: top .2s ease;
     }
     .skip-link:focus { top: 12px; }
-
-    /* ===== Header / Nav (kept from home page) ============================= */
     header {
       background: linear-gradient(135deg, #111827, #1f2937 50%, #111827);
       color: #fff;
@@ -103,13 +155,9 @@ int main() {
     .links { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
     .links a { color: #e5e7eb; text-decoration: none; font-weight: 600; padding: 6px 8px; border-radius: 8px; }
     .links a:hover { color: #fff; background: rgba(255,255,255,.08); }
-
-    /* ===== Page structure/cards =========================================== */
     main { padding: 22px 0; }
     .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; border: 1px solid var(--border); }
     .muted { color: var(--muted); }
-
-    /* Layout: full-width Current Bids on top; three cards under it */
     .layout{
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -123,7 +171,6 @@ int main() {
     .sell{ grid-area: sell; }
     .purch{ grid-area: purch; }
     .lost{ grid-area: lost; }
-
     @media (max-width: 1060px){
       .layout{
         grid-template-columns: repeat(2, 1fr);
@@ -143,25 +190,16 @@ int main() {
           "lost";
       }
     }
-
-    /* ===== Tables ========================================================== */
     table{ width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
     thead th{ background: #f9fafb; border-bottom: 1px solid var(--border); padding: 10px 12px; text-align: left; font-weight: 700; }
     tbody td{ padding: 12px; border-top: 1px solid var(--border); vertical-align: middle; }
-    /* subtle vertical dividers improve scan */
     .cbids th+th, .cbids td+td{ border-left: 1px solid var(--border); }
-
-    /* Column widths for Current Bids */
     .cbids col:nth-child(1){ width: 44%; }
     .cbids col:nth-child(2){ width: 18%; }
     .cbids col:nth-child(3){ width: 18%; }
     .cbids col:nth-child(4){ width: 20%; }
-
-    /* Center the numeric columns */
     .cbids th:nth-child(2), .cbids th:nth-child(3),
     .cbids td:nth-child(2), .cbids td:nth-child(3){ text-align: center; }
-
-    /* ===== Action cell form: stays inside cell ============================ */
     .inline-form{
       display: flex; flex-wrap: wrap; gap: 10px; align-items: center; max-width: 100%;
     }
@@ -175,8 +213,6 @@ int main() {
       text-decoration: none; font-weight: 700; border: 0; cursor: pointer;
     }
     .btn.primary{ background: var(--brand); color: #fff; }
-
-    /* ===== Footer & helpers =============================================== */
     footer { margin: 28px 0 22px; color: var(--muted); font-size: 14px; }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   </style>
@@ -202,7 +238,6 @@ int main() {
 
   <main id="main">
     <div class="container">
-      <!-- Intro card (matches home page style) -->
       <section class="card">
         <h2 style="margin:0 0 8px">My Transactions</h2>
         <p class="muted">Your selling activity, purchases, current bids, and items you didn’t win.</p>
@@ -210,7 +245,10 @@ int main() {
 
       <section class="layout" aria-label="Transactions">
 )";
-    // -------- Current Bids (full width) --------
+
+    // -------------------------------------------------------------------------
+    // CURRENT BIDS
+    // -------------------------------------------------------------------------
     std::cout << R"(        <article class="card bids">
           <h3 style="margin-top:0">Current Bids</h3>
           <table class="cbids" aria-label="Current bids">
@@ -225,205 +263,121 @@ int main() {
             </thead>
             <tbody>
 )";
-
     {
-        // Items still open where this user has bid; compute highest and user's max via subqueries
-        char q[1024];
-        snprintf(q, sizeof(q),
+        const char* sql =
             "SELECT i.item_id, i.title, "
-            "IFNULL(FORMAT((SELECT MAX(b2.bid_amount) FROM bids b2 WHERE b2.item_id=i.item_id),2),'0.00') AS highest, "
-            "IFNULL(FORMAT((SELECT MAX(b1.bid_amount) FROM bids b1 WHERE b1.item_id=i.item_id AND b1.bidder_id=%d),2),'0.00') AS yourmax "
-            "FROM items i "
-            "WHERE i.end_time > NOW() "
-            "AND EXISTS (SELECT 1 FROM bids bx WHERE bx.item_id=i.item_id AND bx.bidder_id=%d) "
-            "ORDER BY i.end_time ASC",
-            userId, userId);
-
-        if (mysql_query(conn, q) == 0) {
-            MYSQL_RES* res = mysql_store_result(conn);
-            if (res) {
-                unsigned long num = mysql_num_rows(res);
-                if (num == 0) {
-                    std::cout << "<tr><td colspan='4'>No active bids.</td></tr>\n";
-                }
-                else {
-                    MYSQL_ROW row;
-                    while ((row = mysql_fetch_row(res))) {
-                        const char* item_id = row[0] ? row[0] : "";
-                        const char* title = row[1] ? row[1] : "";
-                        const char* highest = row[2] ? row[2] : "0.00";
-                        const char* yourmax = row[3] ? row[3] : "0.00";
-
-                        std::cout << "<tr>\n";
-                        std::cout << "  <td>" << title << "</td>\n";
-                        std::cout << "  <td>$" << highest << "</td>\n";
-                        std::cout << "  <td>$" << yourmax << "</td>\n";
-                        std::cout << "  <td>\n";
-                        std::cout << "    <form class='inline-form' action='bid.cgi' method='post'>\n";
-                        std::cout << "      <input type='hidden' name='item_id' value='" << item_id << "'>\n";
-                        std::cout << "      <label class='visually-hidden' for='bid_" << item_id << "'>Increase max bid</label>\n";
-                        std::cout << "      <input id='bid_" << item_id << "' name='bid_amount' type='number' step='0.01' min='" << highest << "' placeholder='Enter new max' required>\n";
-                        std::cout << "      <button class='btn primary' type='submit'>Increase</button>\n";
-                        std::cout << "    </form>\n";
-                        std::cout << "  </td>\n";
-                        std::cout << "</tr>\n";
-                    }
-                }
-                mysql_free_result(res);
-            }
-            else {
-                std::cout << "<tr><td colspan='4'>Error retrieving bids.</td></tr>\n";
-            }
-        }
-        else {
-            std::cout << "<tr><td colspan='4'>Error retrieving bids.</td></tr>\n";
-        }
+            "IFNULL(FORMAT((SELECT MAX(b2.bid_amount) FROM bids b2 WHERE b2.item_id=i.item_id),2),'0.00'), "
+            "IFNULL(FORMAT((SELECT MAX(b1.bid_amount) FROM bids b1 WHERE b1.item_id=i.item_id AND b1.bidder_id=?),2),'0.00') "
+            "FROM items i WHERE i.end_time>NOW() AND EXISTS(SELECT 1 FROM bids bx WHERE bx.item_id=i.item_id AND bx.bidder_id=?) ORDER BY i.end_time ASC";
+        MYSQL_BIND params[2]; memset(params, 0, sizeof(params));
+        params[0].buffer_type = MYSQL_TYPE_LONG; params[0].buffer = &userId; params[0].is_unsigned = 1;
+        params[1] = params[0];
+        bool any = runQueryAndPrint(conn, sql, params, 2,
+            [&](MYSQL_BIND* res, unsigned long*) {
+                std::string item_id(htmlEscape((char*)res[0].buffer));
+                std::string title(htmlEscape((char*)res[1].buffer));
+                std::string highest(htmlEscape((char*)res[2].buffer));
+                std::string yourmax(htmlEscape((char*)res[3].buffer));
+                std::cout << "<tr>\n";
+                std::cout << "  <td>" << title << "</td>\n";
+                std::cout << "  <td>$" << highest << "</td>\n";
+                std::cout << "  <td>$" << yourmax << "</td>\n";
+                std::cout << "  <td>\n";
+                std::cout << "    <form class='inline-form' action='bid.cgi' method='post'>\n";
+                std::cout << "      <input type='hidden' name='item_id' value='" << item_id << "'>\n";
+                std::cout << "      <label class='visually-hidden' for='bid_" << item_id << "'>Increase max bid</label>\n";
+                std::cout << "      <input id='bid_" << item_id << "' name='bid_amount' type='number' step='0.01' min='" << highest << "' placeholder='Enter new max' required>\n";
+                std::cout << "      <button class='btn primary' type='submit'>Increase</button>\n";
+                std::cout << "    </form>\n";
+                std::cout << "  </td>\n";
+                std::cout << "</tr>\n";
+            }, 4);
+        if (!any) std::cout << "<tr><td colspan='4'>No active bids.</td></tr>\n";
     }
 
+    // -------------------------------------------------------------------------
+    // SELLING
+    // -------------------------------------------------------------------------
     std::cout << "            </tbody>\n          </table>\n        </article>\n";
-
-    // -------- Selling --------
     std::cout << R"(        <article class="card sell">
           <h3 style="margin-top:0">Selling</h3>
           <table aria-label="Items you are selling">
             <thead><tr><th>Item</th><th>Status</th><th>Ends</th></tr></thead>
             <tbody>
 )";
-
     {
-        char q[512];
-        snprintf(q, sizeof(q),
-            "SELECT title, "
-            "CASE WHEN end_time < NOW() THEN 'Closed' ELSE 'Active' END AS status, "
-            "DATE_FORMAT(end_time,'%%Y-%%m-%%d %%H:%%i') AS ends "
-            "FROM items WHERE seller_id=%d ORDER BY end_time DESC",
-            userId);
-
-        if (mysql_query(conn, q) == 0) {
-            MYSQL_RES* res = mysql_store_result(conn);
-            if (res) {
-                unsigned long num = mysql_num_rows(res);
-                if (num == 0) {
-                    std::cout << "<tr><td colspan='3'>No listings.</td></tr>\n";
-                }
-                else {
-                    MYSQL_ROW row;
-                    while ((row = mysql_fetch_row(res))) {
-                        const char* title = row[0] ? row[0] : "";
-                        const char* status = row[1] ? row[1] : "";
-                        const char* ends = row[2] ? row[2] : "";
-                        std::cout << "<tr><td>" << title << "</td><td>" << status << "</td><td>" << ends << "</td></tr>\n";
-                    }
-                }
-                mysql_free_result(res);
-            }
-            else {
-                std::cout << "<tr><td colspan='3'>Error retrieving listings.</td></tr>\n";
-            }
-        }
-        else {
-            std::cout << "<tr><td colspan='3'>Error retrieving listings.</td></tr>\n";
-        }
+        const char* sql =
+            "SELECT title, CASE WHEN end_time<NOW() THEN 'Closed' ELSE 'Active' END, DATE_FORMAT(end_time,'%Y-%m-%d %H:%i') "
+            "FROM items WHERE seller_id=? ORDER BY end_time DESC";
+        MYSQL_BIND p[1]; memset(p, 0, sizeof(p));
+        p[0].buffer_type = MYSQL_TYPE_LONG; p[0].buffer = &userId; p[0].is_unsigned = 1;
+        bool any = runQueryAndPrint(conn, sql, p, 1,
+            [&](MYSQL_BIND* res, unsigned long*) {
+                std::string title(htmlEscape((char*)res[0].buffer));
+                std::string status(htmlEscape((char*)res[1].buffer));
+                std::string ends(htmlEscape((char*)res[2].buffer));
+                std::cout << "<tr><td>" << title << "</td><td>" << status << "</td><td>" << ends << "</td></tr>\n";
+            }, 3);
+        if (!any) std::cout << "<tr><td colspan='3'>No listings.</td></tr>\n";
     }
 
+    // -------------------------------------------------------------------------
+    // PURCHASES
+    // -------------------------------------------------------------------------
     std::cout << "            </tbody>\n          </table>\n        </article>\n";
-
-    // -------- Purchases --------
     std::cout << R"(        <article class="card purch">
           <h3 style="margin-top:0">Purchases</h3>
           <table aria-label="Items you purchased">
             <thead><tr><th>Item</th><th>Winning Bid</th><th>Closed</th></tr></thead>
             <tbody>
 )";
-
     {
-        char q[768];
-        snprintf(q, sizeof(q),
-            "SELECT i.title, "
-            "IFNULL(FORMAT((SELECT bid_amount FROM bids WHERE bid_id=i.winning_bid_id),2),'0.00') AS win_bid, "
-            "DATE_FORMAT(i.end_time,'%%Y-%%m-%%d %%H:%%i') AS closed "
-            "FROM items i WHERE i.winner_id=%d ORDER BY i.end_time DESC",
-            userId);
-
-        if (mysql_query(conn, q) == 0) {
-            MYSQL_RES* res = mysql_store_result(conn);
-            if (res) {
-                unsigned long num = mysql_num_rows(res);
-                if (num == 0) {
-                    std::cout << "<tr><td colspan='3'>No purchases yet.</td></tr>\n";
-                }
-                else {
-                    MYSQL_ROW row;
-                    while ((row = mysql_fetch_row(res))) {
-                        const char* title = row[0] ? row[0] : "";
-                        const char* price = row[1] ? row[1] : "0.00";
-                        const char* closed = row[2] ? row[2] : "";
-                        std::cout << "<tr><td>" << title << "</td><td>$" << price << "</td><td>" << closed << "</td></tr>\n";
-                    }
-                }
-                mysql_free_result(res);
-            }
-            else {
-                std::cout << "<tr><td colspan='3'>Error retrieving purchases.</td></tr>\n";
-            }
-        }
-        else {
-            std::cout << "<tr><td colspan='3'>Error retrieving purchases.</td></tr>\n";
-        }
+        const char* sql =
+            "SELECT i.title, IFNULL(FORMAT((SELECT bid_amount FROM bids WHERE bid_id=i.winning_bid_id),2),'0.00'), DATE_FORMAT(i.end_time,'%Y-%m-%d %H:%i') "
+            "FROM items i WHERE i.winner_id=? ORDER BY i.end_time DESC";
+        MYSQL_BIND p[1]; memset(p, 0, sizeof(p));
+        p[0].buffer_type = MYSQL_TYPE_LONG; p[0].buffer = &userId; p[0].is_unsigned = 1;
+        bool any = runQueryAndPrint(conn, sql, p, 1,
+            [&](MYSQL_BIND* res, unsigned long*) {
+                std::string title(htmlEscape((char*)res[0].buffer));
+                std::string win_bid(htmlEscape((char*)res[1].buffer));
+                std::string closed(htmlEscape((char*)res[2].buffer));
+                std::cout << "<tr><td>" << title << "</td><td>$" << win_bid << "</td><td>" << closed << "</td></tr>\n";
+            }, 3);
+        if (!any) std::cout << "<tr><td colspan='3'>No purchases yet.</td></tr>\n";
     }
 
+    // -------------------------------------------------------------------------
+    // DIDN'T WIN
+    // -------------------------------------------------------------------------
     std::cout << "            </tbody>\n          </table>\n        </article>\n";
-
-    // -------- Didn’t Win --------
     std::cout << R"(        <article class="card lost">
           <h3 style="margin-top:0">Didn’t Win</h3>
           <table aria-label="Auctions you didn’t win">
             <thead><tr><th>Item</th><th>Winning Bid</th><th>Closed</th></tr></thead>
             <tbody>
 )";
-
     {
-        char q[1024];
-        snprintf(q, sizeof(q),
-            "SELECT i.title, "
-            "IFNULL(FORMAT((SELECT bid_amount FROM bids WHERE bid_id=i.winning_bid_id),2),'0.00') AS win_bid, "
-            "DATE_FORMAT(i.end_time,'%%Y-%%m-%%d %%H:%%i') AS closed "
-            "FROM items i "
-            "WHERE i.winner_id IS NOT NULL AND i.winner_id<>%d "
-            "AND EXISTS (SELECT 1 FROM bids b WHERE b.item_id=i.item_id AND b.bidder_id=%d) "
-            "ORDER BY i.end_time DESC",
-            userId, userId);
-
-        if (mysql_query(conn, q) == 0) {
-            MYSQL_RES* res = mysql_store_result(conn);
-            if (res) {
-                unsigned long num = mysql_num_rows(res);
-                if (num == 0) {
-                    std::cout << "<tr><td colspan='3'>No lost auctions.</td></tr>\n";
-                }
-                else {
-                    MYSQL_ROW row;
-                    while ((row = mysql_fetch_row(res))) {
-                        const char* title = row[0] ? row[0] : "";
-                        const char* price = row[1] ? row[1] : "0.00";
-                        const char* closed = row[2] ? row[2] : "";
-                        std::cout << "<tr><td>" << title << "</td><td>$" << price << "</td><td>" << closed << "</td></tr>\n";
-                    }
-                }
-                mysql_free_result(res);
-            }
-            else {
-                std::cout << "<tr><td colspan='3'>Error retrieving lost auctions.</td></tr>\n";
-            }
-        }
-        else {
-            std::cout << "<tr><td colspan='3'>Error retrieving lost auctions.</td></tr>\n";
-        }
+        const char* sql =
+            "SELECT i.title, IFNULL(FORMAT((SELECT bid_amount FROM bids WHERE bid_id=i.winning_bid_id),2),'0.00'), DATE_FORMAT(i.end_time,'%Y-%m-%d %H:%i') "
+            "FROM items i WHERE i.winner_id IS NOT NULL AND i.winner_id<>? AND EXISTS(SELECT 1 FROM bids b WHERE b.item_id=i.item_id AND b.bidder_id=?) ORDER BY i.end_time DESC";
+        MYSQL_BIND params[2]; memset(params, 0, sizeof(params));
+        params[0].buffer_type = MYSQL_TYPE_LONG; params[0].buffer = &userId; params[0].is_unsigned = 1;
+        params[1] = params[0];
+        bool any = runQueryAndPrint(conn, sql, params, 2,
+            [&](MYSQL_BIND* res, unsigned long*) {
+                std::string title(htmlEscape((char*)res[0].buffer));
+                std::string win_bid(htmlEscape((char*)res[1].buffer));
+                std::string closed(htmlEscape((char*)res[2].buffer));
+                std::cout << "<tr><td>" << title << "</td><td>$" << win_bid << "</td><td>" << closed << "</td></tr>\n";
+            }, 3);
+        if (!any) std::cout << "<tr><td colspan='3'>No lost auctions.</td></tr>\n";
     }
 
+    // -------------------------------------------------------------------------
+    // END PAGE
+    // -------------------------------------------------------------------------
     std::cout << "            </tbody>\n          </table>\n        </article>\n";
-
-    // -------- Close layout / page --------
     std::cout << R"(      </section>
       <footer>&copy; 2025 Team Elevate. All rights reserved.</footer>
     </div>
@@ -431,7 +385,6 @@ int main() {
 </body>
 </html>
 )";
-
     closeDBConnection(conn);
     return 0;
 }
