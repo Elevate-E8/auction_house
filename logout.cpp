@@ -51,8 +51,8 @@ int main() {
         << "    <section class='card' role='status' aria-live='polite'>\n"
         << "      <h1>✓ Signed out</h1>\n"
         << "      <p class='muted'>Your session has ended. We’re taking you back to the homepage…</p>\n"
-        << "      <meta http-equiv='refresh' content='2; url=/~elevate/cgi/index.cgi'>\n"
-        << "      <a class='btn' href='/~elevate/cgi/index.cgi'>Go to Home</a>\n"
+        << "      <meta http-equiv='refresh' content='2; url=index.cgi'>\n"
+        << "      <a class='btn' href='index.cgi'>Go to Home</a>\n"
         << "    </section>\n";
     printTail("auth");
 

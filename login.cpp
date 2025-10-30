@@ -19,7 +19,7 @@ void renderLoginForm(const std::string& errorMsg = "") {
         std::cout << "      <div class='error'>" << errorMsg << "</div>\n";
     }
     std::cout
-        << "      <form method='post' action='/~elevate/cgi/login.cgi'>\n"
+        << "      <form method='post' action='login.cgi'>\n"
         << "        <div>\n"
         << "          <label for='email'>Email</label>\n"
         << "          <input id='email' name='email' type='email' maxlength='100' required autocomplete='email'>\n"
@@ -30,7 +30,7 @@ void renderLoginForm(const std::string& errorMsg = "") {
         << "        </div>\n"
         << "        <button class='btn' type='submit'>Log In</button>\n"
         << "      </form>\n"
-        << "      <div class='top-gap helper'>Don't have an account? <a href='/~elevate/cgi/register.cgi'>Create one</a>.</div>\n"
+        << "      <div class='top-gap helper'>Don't have an account? <a href='register.cgi'>Create one</a>.</div>\n"
         << "    </section>\n";
     printTail("auth");
 }
@@ -46,8 +46,8 @@ void renderLoginSuccess(const std::string& email, const std::string& sessionToke
         << "      <h1>✓ Login successful</h1>\n"
         << "      <div class='success'>Signed in as <strong>" << htmlEscape(email) << "</strong>.</div>\n"
         << "      <p class='muted'>Redirecting to the homepage…</p>\n"
-        << "      <meta http-equiv='refresh' content='2;url=/~elevate/cgi/index.cgi'>\n"
-        << "      <a class='btn' href='/~elevate/cgi/index.cgi'>Go to Home</a>\n"
+        << "      <meta http-equiv='refresh' content='2;url=index.cgi'>\n"
+        << "      <a class='btn' href='index.cgi'>Go to Home</a>\n"
         << "    </section>\n";
     printTail("auth");
 }

@@ -71,7 +71,7 @@ void renderRegisterForm(const std::string& emailPrefill = "", const std::string&
         std::cout << "      <div class='error'>" << errorMsg << "</div>\n";
     }
     std::cout
-        << "      <form method='post' action='/~elevate/cgi/register.cgi'>\n"
+        << "      <form method='post' action='register.cgi'>\n"
         << "        <div>\n"
         << "          <label for='email'>Email</label>\n"
         << "          <input id='email' name='email' type='email' maxlength='100' required value='" << htmlEscape(emailPrefill) << "'>\n"
@@ -87,7 +87,7 @@ void renderRegisterForm(const std::string& emailPrefill = "", const std::string&
         << "        </div>\n"
         << "        <button class='btn' type='submit'>Create account</button>\n"
         << "      </form>\n"
-        << "      <div class='top-gap helper'>Already have an account? <a href='/~elevate/cgi/login.cgi'>Log in</a>.</div>\n"
+        << "      <div class='top-gap helper'>Already have an account? <a href='login.cgi'>Log in</a>.</div>\n"
         << "    </section>\n";
     printTail("auth");
 }
@@ -101,8 +101,8 @@ void renderRegisterSuccess(const std::string& email, const std::string& sessionT
         << "      <h1>✓ Registration Successful</h1>\n"
         << "      <div class='success'>Welcome to Team Elevate, " << htmlEscape(email) << ".</div>\n"
         << "      <p class='muted'>You’ll be redirected to the home page momentarily.</p>\n"
-        << "      <meta http-equiv='refresh' content='3;url=/~elevate/cgi/index.cgi'>\n"
-        << "      <div class='top-gap'><a class='btn' href='/~elevate/cgi/index.cgi'>Go now</a></div>\n"
+        << "      <meta http-equiv='refresh' content='3;url=index.cgi'>\n"
+        << "      <div class='top-gap'><a class='btn' href='index.cgi'>Go now</a></div>\n"
         << "    </section>\n";
     printTail("auth");
 }

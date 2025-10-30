@@ -207,15 +207,15 @@ void printHead(const std::string& title, const std::string& layout) {
         << "        <nav class='links'>\n";
 
     if (isLoggedIn) {
-        std::cout << "          <a href='/~elevate/cgi/index.cgi'>Home</a>\n"
-            "          <a href='/~elevate/cgi/list_auctions.cgi'>Browse Auctions</a>\n"
-            "          <a href='/~elevate/cgi/my_bids.cgi'>My Transactions</a>\n"
-            "          <a href='/~elevate/cgi/logout.cgi'>Logout</a>\n";
+        std::cout << "          <a href='index.cgi'>Home</a>\n"
+            "          <a href='list_auctions.cgi'>Browse Auctions</a>\n"
+            "          <a href='my_bids.cgi'>My Transactions</a>\n"
+            "          <a href='logout.cgi'>Logout</a>\n";
     }
     else {
-        std::cout << "          <a href='/~elevate/cgi/index.cgi'>Home</a>\n"
-            "          <a href='/~elevate/cgi/login.cgi'>Login</a>\n"
-            "          <a href='/~elevate/cgi/register.cgi'>Register</a>\n";
+        std::cout << "          <a href='index.cgi'>Home</a>\n"
+            "          <a href='login.cgi'>Login</a>\n"
+            "          <a href='register.cgi'>Register</a>\n";
     }
 
     std::cout << "        </nav>\n"
