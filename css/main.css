@@ -1,0 +1,318 @@
+/* ============================================================
+   Team Elevate Auctions - Main Stylesheet
+   ============================================================ */
+
+/* ---------- Theme and Variables ---------- */
+:root {
+  --ink: #0f172a;
+  --muted: #475569;
+  --bg: #f6f7fb;
+  --card: #ffffff;
+  --brand: #4f46e5;
+  --border: #e5e7eb;
+  --shadow: 0 6px 18px rgba(2, 6, 23, 0.08);
+  --radius: 14px;
+}
+
+/* ---------- Base Elements ---------- */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--brand);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.container {
+  max-width: 1100px;
+  margin-inline: auto;
+  padding-inline: 20px;
+}
+
+/* ---------- Header and Navigation ---------- */
+header {
+  background: linear-gradient(135deg, #111827, #1f2937 50%, #111827);
+  color: #fff;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 0;
+  gap: 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--brand), #7c3aed);
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: 0.3px;
+}
+
+.links {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.links a {
+  color: #e5e7eb;
+  font-weight: 600;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+
+.links a:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ---------- Cards and Buttons ---------- */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 28px;
+  border: 1px solid var(--border);
+}
+
+.card h1, .card h2, .card h3 {
+  margin-top: 0;
+}
+
+.btn {
+  display: inline-block;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.btn.primary {
+  background: var(--brand);
+  color: #fff;
+}
+
+.btn.primary:hover {
+  filter: brightness(1.05);
+}
+
+.muted { color: var(--muted); }
+.helper { color: var(--muted); font-size: 13px; }
+
+.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 12px;
+  border-radius: 10px;
+  margin: 10px 0;
+}
+
+.success {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  padding: 12px;
+  border-radius: 10px;
+  margin: 10px 0;
+}
+
+/* ---------- Forms (login/register) ---------- */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+label {
+  font-weight: 700;
+  color: #374151;
+  font-size: 14px;
+}
+
+input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 15px;
+  background: #fff;
+}
+
+input:focus {
+  outline: 2px solid var(--brand);
+  border-color: transparent;
+}
+
+/* ---------- Auth Page Layout ---------- */
+.auth main {
+  display: grid;
+  place-items: center;
+  padding: 40px 0;
+}
+
+.auth .card {
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+}
+
+/* ---------- Transactions Layout ---------- */
+.layout {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-areas:
+    "bids bids bids"
+    "sell purch lost";
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.bids { grid-area: bids; }
+.sell { grid-area: sell; }
+.purch { grid-area: purch; }
+.lost { grid-area: lost; }
+
+/* ---------- Tables ---------- */
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+thead th {
+  background: #f9fafb;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 700;
+}
+
+tbody td {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+/* ---------- Current Bids Card / Inline Form ---------- */
+.cbids th + th, .cbids td + td { border-left: 1px solid var(--border); }
+
+.cbids col:nth-child(1) { width: 44%; }
+.cbids col:nth-child(2) { width: 18%; }
+.cbids col:nth-child(3) { width: 18%; }
+.cbids col:nth-child(4) { width: 20%; }
+
+.cbids th:nth-child(2),
+.cbids th:nth-child(3),
+.cbids td:nth-child(2),
+.cbids td:nth-child(3) {
+  text-align: center;
+}
+
+.inline-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  vertical-align: middle;
+}
+
+.cbids .inline-form input[type=number] {
+  height: 28px;
+  line-height: 28px;
+  padding: 0 8px;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  box-sizing: border-box;
+  vertical-align: middle;
+}
+
+.cbids .inline-form button {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 14px;
+  line-height: 28px;
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cbids .inline-form button:hover {
+  filter: brightness(1.05);
+}
+
+/* ---------- Footer ---------- */
+footer {
+  margin: 28px 0 22px;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1060px) {
+  .layout {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-areas:
+      "bids bids"
+      "sell purch"
+      "lost lost";
+  }
+}
+
+@media (max-width: 720px) {
+  .layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "bids"
+      "sell"
+      "purch"
+      "lost";
+  }
+
+  .card { padding: 22px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
