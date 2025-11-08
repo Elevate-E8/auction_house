@@ -124,7 +124,7 @@ void IndexPage::handleGet() {
 
     if (isLoggedIn) {
         std::cout << R"(
-          <a href="list_auctions.cgi">Browse Auctions</a>
+          <a href="browse.cgi">Browse Auctions</a>
           <a href="sell.cgi">Sell</a>
           <a href="transactions.cgi">My Transactions</a>
           <a href="logout.cgi">Logout</a>
