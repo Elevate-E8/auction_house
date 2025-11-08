@@ -18,8 +18,7 @@ int Page::run() {
     if (method && std::string(method) == "POST") {
         parsePost();
         handlePost();
-    }
-    else {
+    } else {
         handleGet();
     }
     return 0;
@@ -60,20 +59,23 @@ void Page::printHead(const std::string& title, const std::string& mode) const {
         << "    <div class='nav'>\n"
         << "      <div class='brand'>\n"
         << "        <span class='logo'></span>\n"
-        << "        <h1>Team Elevate Auctions</h1>\n"
+        << "        <h1 style='margin:0'>"
+        << "          <a class='brand-link' href='index.cgi'>Team Elevate Auctions</a>"
+        << "        </h1>\n"
         << "      </div>\n"
         << "      <nav class='links'>\n";
 
+    // Unified nav (no 'Home'; explicit pages only)
     if (isLoggedIn) {
         std::cout
-            << "        <a href='index.cgi'>Home</a>\n"
+            << "        <a href='sell.cgi'>Sell</a>\n"
             << "        <a href='list_auctions.cgi'>Browse Auctions</a>\n"
             << "        <a href='transactions.cgi'>My Transactions</a>\n"
             << "        <a href='logout.cgi'>Logout</a>\n";
-    }
-    else {
+    } else {
         std::cout
-            << "        <a href='index.cgi'>Home</a>\n"
+            << "        <a href='sell.cgi'>Sell</a>\n"
+            // Browse hidden when logged out
             << "        <a href='login.cgi'>Login</a>\n"
             << "        <a href='register.cgi'>Register</a>\n";
     }
@@ -88,8 +90,7 @@ void Page::printHead(const std::string& title, const std::string& mode) const {
     if (mode == "auth") {
         // Centered card layout (login/register/logout)
         std::cout << "<main>\n";
-    }
-    else {
+    } else {
         // Normal content pages
         std::cout << "<main><div class='container'>\n";
     }
@@ -103,8 +104,7 @@ void Page::printTail(const std::string& mode) const {
         std::cout
             << "<footer>&copy; 2025 Team Elevate. All rights reserved.</footer>\n"
             << "</main>\n";
-    }
-    else {
+    } else {
         std::cout
             << "<footer>&copy; 2025 Team Elevate. All rights reserved.</footer>\n"
             << "</div></main>\n";
