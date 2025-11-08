@@ -90,9 +90,16 @@ void SellPage::handleGet() {
       var readout = document.getElementById('endReadout');
       function pad(n){ return (n < 10 ? '0' : '') + n; }
       function fmt(dt){
-        return dt.getFullYear() + '-' + pad(dt.getMonth()+1) + '-' + pad(dt.getDate())
-             + ' ' + pad(dt.getHours()) + ':' + pad(dt.getMinutes());
-      }
+        var month = pad(dt.getMonth()+1);
+        var day = pad(dt.getDate());
+        var year = dt.getFullYear();
+        var hour = dt.getHours();
+        var minute = pad(dt.getMinutes());
+        var ampm = hour >= 12 ? ' PM' : ' AM';
+        if (hour > 12) hour -= 12;
+        if (hour === 0) hour = 12;
+        return month + '/' + day + '/' + year + ' ' + hour + ':' + minute + ampm;
+    }
       function update(){
         if (!start || !start.value) { readout.textContent = ''; return; }
         var s = new Date(start.value);
@@ -373,12 +380,31 @@ void SellPage::handlePost() {
     char priceBuffer[32];
     std::snprintf(priceBuffer, sizeof(priceBuffer), "%.2f", startingPrice);
 
-    // Format datetime for display (remove T, make it readable)
+    // Parse and format datetime to MM/DD/YYYY h:MM AM/PM
     std::string displayDatetime = startDatetime;
     size_t tDisplay = displayDatetime.find('T');
     if (tDisplay != std::string::npos) {
-        displayDatetime[tDisplay] = ' ';
+       displayDatetime[tDisplay] = ' ';
     }
+
+    // Parse YYYY-MM-DD HH:MM format
+    if (displayDatetime.length() >= 16) {
+        std::string year = displayDatetime.substr(0, 4);
+        std::string month = displayDatetime.substr(5, 2);
+        std::string day = displayDatetime.substr(8, 2);
+        std::string hourStr = displayDatetime.substr(11, 2);
+        std::string minute = displayDatetime.substr(14, 2);
+
+        int hour = std::stoi(hourStr);
+        std::string ampm = (hour >= 12) ? " PM" : " AM";
+        if (hour > 12) hour -= 12;
+        if (hour == 0) hour = 12;
+
+    // Format as MM/DD/YYYY h:MM AM/PM
+    displayDatetime = month + "/" + day + "/" + year + " "
+                    + std::to_string(hour) + ":" + minute + ampm;
+    }
+
 
     std::cout << R"(
     <section class="card" role="status" aria-live="polite">
