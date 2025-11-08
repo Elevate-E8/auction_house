@@ -64,11 +64,13 @@ header {
   gap: 12px;
 }
 
+/* Logo: use PNG instead of the purple gradient */
 .logo {
-  width: 36px;
-  height: 36px;
+  width: 48px;      /* was 36px */
+  height: 48px;     /* was 36px */
   border-radius: 10px;
-  background: linear-gradient(135deg, var(--brand), #7c3aed);
+  background: url("../images/E8.png") center / contain no-repeat;
+  background-color: transparent; /* fallback canvas behind transparent PNG */
 }
 
 .brand h1 {
@@ -301,17 +303,9 @@ footer {
 }
 
 /* ---------- Responsive ---------- */
-@media (max-width: 1060px) {
-  .layout {
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-areas:
-      "bids bids"
-      "sell purch"
-      "lost lost";
-  }
-}
-
 @media (max-width: 720px) {
+  .logo { width: 36px; height: 36px; }
+
   .layout {
     grid-template-columns: 1fr;
     grid-template-areas:
@@ -322,6 +316,16 @@ footer {
   }
 
   .card { padding: 22px; }
+}
+
+@media (max-width: 1060px) {
+  .layout {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-areas:
+      "bids bids"
+      "sell purch"
+      "lost lost";
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
