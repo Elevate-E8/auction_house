@@ -1,4 +1,4 @@
-﻿// pages/IndexPage.cpp
+// pages/IndexPage.cpp
 #include "pages/IndexPage.hpp"
 #include "utils/utils.hpp"
 #include <iostream>
@@ -67,6 +67,11 @@ void IndexPage::handleGet() {
     .brand { display: flex; align-items: center; gap: 12px; }
     .logo { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--brand), #7c3aed); }
     .brand h1 { margin: 0; font-size: 18px; letter-spacing: .3px; }
+
+    /* Make brand text a link with no underline (even on hover) */
+    .brand a.brand-link { color:#fff; text-decoration:none; }
+    .brand a.brand-link:hover { text-decoration:none; }
+
     .links { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
     .links a { color: #e5e7eb; text-decoration: none; font-weight: 600; padding: 6px 8px; border-radius: 8px; }
     .links a:hover { color: #fff; background: rgba(255,255,255,.08); }
@@ -100,14 +105,14 @@ void IndexPage::handleGet() {
       <div class="nav" role="navigation" aria-label="Primary">
         <div class="brand">
           <span class="logo" aria-hidden="true"></span>
-          <h1>Team Elevate Auctions</h1>
+          <h1><a class="brand-link" href="index.cgi">Team Elevate Auctions</a></h1>
         </div>
         <nav class="links">
 )";
 
     if (isLoggedIn) {
         std::cout << R"(
-          <a href="index.cgi">Home</a>
+          <a href="sell.cgi">Sell</a>
           <a href="list_auctions.cgi">Browse Auctions</a>
           <a href="transactions.cgi">My Transactions</a>
           <a href="logout.cgi">Logout</a>
@@ -115,7 +120,7 @@ void IndexPage::handleGet() {
     }
     else {
         std::cout << R"(
-          <a href="index.cgi">Home</a>
+          <a href="sell.cgi">Sell</a>
           <a href="login.cgi">Login</a>
           <a href="register.cgi">Register</a>
 )";
