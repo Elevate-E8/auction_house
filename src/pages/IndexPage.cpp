@@ -65,7 +65,19 @@ void IndexPage::handleGet() {
     }
     .nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; gap: 16px; }
     .brand { display: flex; align-items: center; gap: 12px; }
-    .logo { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--brand), #7c3aed); }
+
+    /* Logo: using PNG */
+    .logo {
+      width: 48px;                 /* was 36px */
+      height: 48px;                /* was 36px */
+      border-radius: 10px;
+      background: url("../images/E8.png") center / contain no-repeat;
+      background-color: transparent;
+    }
+    @media (max-width: 720px) {
+      .logo { width: 36px; height: 36px; }
+    }
+
     .brand h1 { margin: 0; font-size: 18px; letter-spacing: .3px; }
 
     /* Make brand text a link with no underline (even on hover) */
