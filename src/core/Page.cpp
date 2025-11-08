@@ -65,17 +65,15 @@ void Page::printHead(const std::string& title, const std::string& mode) const {
         << "      </div>\n"
         << "      <nav class='links'>\n";
 
-    // Unified nav (no 'Home'; explicit pages only)
+    // Only show Bid/Sell when logged in
     if (isLoggedIn) {
         std::cout
-            << "        <a href='sell.cgi'>Sell</a>\n"
             << "        <a href='list_auctions.cgi'>Browse Auctions</a>\n"
+            << "        <a href='sell.cgi'>Sell</a>\n"
             << "        <a href='transactions.cgi'>My Transactions</a>\n"
             << "        <a href='logout.cgi'>Logout</a>\n";
     } else {
         std::cout
-            << "        <a href='sell.cgi'>Sell</a>\n"
-            // Browse hidden when logged out
             << "        <a href='login.cgi'>Login</a>\n"
             << "        <a href='register.cgi'>Register</a>\n";
     }
@@ -88,10 +86,8 @@ void Page::printHead(const std::string& title, const std::string& mode) const {
 
     // Body open
     if (mode == "auth") {
-        // Centered card layout (login/register/logout)
         std::cout << "<main>\n";
     } else {
-        // Normal content pages
         std::cout << "<main><div class='container'>\n";
     }
 }
