@@ -66,7 +66,7 @@ static bool runQueryAndPrint(
 
 void TransactionsPage::handleGet() {
     sendHTMLHeader();
-    printHead("My Transactions � Team Elevate", "content");
+    printHead("My Transactions · Team Elevate", "content");
 
     // Ensure user is logged in
     if (!session_.isLoggedIn()) {
@@ -86,29 +86,111 @@ void TransactionsPage::handleGet() {
     std::string email = session_.userEmail();
 
     // ---------------------------------------------------------------------
-    // Page header
+    // Page header + tiny tab styles
     // ---------------------------------------------------------------------
     std::cout << R"(
     <section class="card">
       <h2 style="margin:0 0 8px">My Transactions</h2>
       <p class="muted">Your selling activity, purchases, current bids, and items you didn't win.</p>
-    </section>
 
-    <section class="layout" aria-label="Transactions">
+      <div role="tablist" aria-label="Transactions Tabs" class="tx-tabs" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+        <button role="tab" class="tx-tab" data-target="tab-selling"      aria-selected="true">Selling</button>
+        <button role="tab" class="tx-tab" data-target="tab-purchases"    aria-selected="false">Purchases</button>
+        <button role="tab" class="tx-tab" data-target="tab-bids"         aria-selected="false">Current Bids</button>
+        <button role="tab" class="tx-tab" data-target="tab-lost"         aria-selected="false">Didn't Win</button>
+      </div>
+
+      <style>
+        .tx-tab{
+          border:1px solid var(--border);
+          background:#fff;
+          padding:8px 14px; border-radius:999px;
+          font-weight:700; cursor:pointer;
+        }
+        .tx-tab[aria-selected="true"]{
+          outline:2px solid #fb923c; /* orange ring like your mock */
+          outline-offset:2px;
+        }
+        .tx-section{ display:none; margin-top:16px; }
+        .tx-section.active{ display:block; }
+      </style>
+    </section>
 )";
+
+    // We’ll render the 4 sections now (same queries you already had),
+    // but each wrapped in a .tx-section container.
+
+    // =====================================================
+    // SELLING (your existing query; shows Active/Closed in a column)
+    // =====================================================
+    std::cout << R"(
+    <section id="tab-selling" class="card tx-section active" aria-labelledby="Selling">
+      <h3 style="margin-top:0">Selling</h3>
+      <table aria-label="Items you are selling">
+        <thead><tr><th>Item</th><th>Status</th><th>Ends</th></tr></thead>
+        <tbody>
+)";
+    {
+        const char* sql =
+            "SELECT title, "
+            "CASE WHEN end_time<NOW() THEN 'Closed' ELSE 'Active' END, "
+            "DATE_FORMAT(end_time,'%Y-%m-%d %H:%i') "
+            "FROM items WHERE seller_id=? ORDER BY end_time DESC";
+        MYSQL_BIND p[1]; memset(p, 0, sizeof(p));
+        p[0].buffer_type = MYSQL_TYPE_LONG; p[0].buffer = &userId; p[0].is_unsigned = 1;
+
+        bool any = runQueryAndPrint(conn, sql, p, 1,
+            [&](MYSQL_BIND* res, unsigned long*) {
+                std::string title(htmlEscape((char*)res[0].buffer));
+                std::string status(htmlEscape((char*)res[1].buffer));
+                std::string ends(htmlEscape((char*)res[2].buffer));
+                std::cout << "<tr><td>" << title << "</td><td>" << status << "</td><td>" << ends << "</td></tr>\n";
+            }, 3);
+        if (!any) std::cout << "<tr><td colspan='3'>No listings.</td></tr>\n";
+    }
+    std::cout << "</tbody></table></section>\n";
+
+    // =====================================================
+    // PURCHASES
+    // =====================================================
+    std::cout << R"(
+    <section id="tab-purchases" class="card tx-section" aria-labelledby="Purchases">
+      <h3 style="margin-top:0">Purchases</h3>
+      <table aria-label="Items you purchased">
+        <thead><tr><th>Item</th><th>Winning Bid</th><th>Closed</th></tr></thead>
+        <tbody>
+)";
+    {
+        const char* sql =
+            "SELECT i.title, "
+            "IFNULL(FORMAT((SELECT bid_amount FROM bids WHERE bid_id=i.winning_bid_id),2),'0.00'), "
+            "DATE_FORMAT(i.end_time,'%Y-%m-%d %H:%i') "
+            "FROM items i WHERE i.winner_id=? ORDER BY i.end_time DESC";
+        MYSQL_BIND p[1]; memset(p, 0, sizeof(p));
+        p[0].buffer_type = MYSQL_TYPE_LONG; p[0].buffer = &userId; p[0].is_unsigned = 1;
+
+        bool any = runQueryAndPrint(conn, sql, p, 1,
+            [&](MYSQL_BIND* res, unsigned long*) {
+                std::string title(htmlEscape((char*)res[0].buffer));
+                std::string bid(htmlEscape((char*)res[1].buffer));
+                std::string closed(htmlEscape((char*)res[2].buffer));
+                std::cout << "<tr><td>" << title << "</td><td>$" << bid << "</td><td>" << closed << "</td></tr>\n";
+            }, 3);
+        if (!any) std::cout << "<tr><td colspan='3'>No purchases yet.</td></tr>\n";
+    }
+    std::cout << "</tbody></table></section>\n";
 
     // =====================================================
     // CURRENT BIDS
     // =====================================================
     std::cout << R"(
-      <article class="card bids">
-        <h3 style="margin-top:0">Current Bids</h3>
-        <table class="cbids" aria-label="Current bids">
-          <colgroup><col><col><col><col></colgroup>
-          <thead><tr><th>Item</th><th>Highest Bid</th><th>Your Max</th><th>Action</th></tr></thead>
-          <tbody>
-    )";
-
+    <section id="tab-bids" class="card tx-section" aria-labelledby="Current Bids">
+      <h3 style="margin-top:0">Current Bids</h3>
+      <table class="cbids" aria-label="Current bids">
+        <colgroup><col><col><col><col></colgroup>
+        <thead><tr><th>Item</th><th>Highest Bid</th><th>Your Max</th><th>Action</th></tr></thead>
+        <tbody>
+)";
     {
         const char* sql =
             "SELECT i.item_id, i.title, "
@@ -143,78 +225,18 @@ void TransactionsPage::handleGet() {
             }, 4);
         if (!any) std::cout << "<tr><td colspan='4'>No active bids.</td></tr>\n";
     }
-    std::cout << "</tbody></table></article>\n";
-
-    // =====================================================
-    // SELLING
-    // =====================================================
-    std::cout << R"(
-      <article class="card sell">
-        <h3 style="margin-top:0">Selling</h3>
-        <table aria-label="Items you are selling">
-          <thead><tr><th>Item</th><th>Status</th><th>Ends</th></tr></thead>
-          <tbody>
-    )";
-    {
-        const char* sql =
-            "SELECT title, "
-            "CASE WHEN end_time<NOW() THEN 'Closed' ELSE 'Active' END, "
-            "DATE_FORMAT(end_time,'%Y-%m-%d %H:%i') "
-            "FROM items WHERE seller_id=? ORDER BY end_time DESC";
-        MYSQL_BIND p[1]; memset(p, 0, sizeof(p));
-        p[0].buffer_type = MYSQL_TYPE_LONG; p[0].buffer = &userId; p[0].is_unsigned = 1;
-
-        bool any = runQueryAndPrint(conn, sql, p, 1,
-            [&](MYSQL_BIND* res, unsigned long*) {
-                std::string title(htmlEscape((char*)res[0].buffer));
-                std::string status(htmlEscape((char*)res[1].buffer));
-                std::string ends(htmlEscape((char*)res[2].buffer));
-                std::cout << "<tr><td>" << title << "</td><td>" << status << "</td><td>" << ends << "</td></tr>\n";
-            }, 3);
-        if (!any) std::cout << "<tr><td colspan='3'>No listings.</td></tr>\n";
-    }
-    std::cout << "</tbody></table></article>\n";
-
-    // =====================================================
-    // PURCHASES
-    // =====================================================
-    std::cout << R"(
-      <article class="card purch">
-        <h3 style="margin-top:0">Purchases</h3>
-        <table aria-label="Items you purchased">
-          <thead><tr><th>Item</th><th>Winning Bid</th><th>Closed</th></tr></thead>
-          <tbody>
-    )";
-    {
-        const char* sql =
-            "SELECT i.title, "
-            "IFNULL(FORMAT((SELECT bid_amount FROM bids WHERE bid_id=i.winning_bid_id),2),'0.00'), "
-            "DATE_FORMAT(i.end_time,'%Y-%m-%d %H:%i') "
-            "FROM items i WHERE i.winner_id=? ORDER BY i.end_time DESC";
-        MYSQL_BIND p[1]; memset(p, 0, sizeof(p));
-        p[0].buffer_type = MYSQL_TYPE_LONG; p[0].buffer = &userId; p[0].is_unsigned = 1;
-
-        bool any = runQueryAndPrint(conn, sql, p, 1,
-            [&](MYSQL_BIND* res, unsigned long*) {
-                std::string title(htmlEscape((char*)res[0].buffer));
-                std::string bid(htmlEscape((char*)res[1].buffer));
-                std::string closed(htmlEscape((char*)res[2].buffer));
-                std::cout << "<tr><td>" << title << "</td><td>$" << bid << "</td><td>" << closed << "</td></tr>\n";
-            }, 3);
-        if (!any) std::cout << "<tr><td colspan='3'>No purchases yet.</td></tr>\n";
-    }
-    std::cout << "</tbody></table></article>\n";
+    std::cout << "</tbody></table></section>\n";
 
     // =====================================================
     // LOST
     // =====================================================
     std::cout << R"(
-      <article class="card lost">
-        <h3 style="margin-top:0">Didn't Win</h3>
-        <table aria-label="Auctions you didn't win">
-          <thead><tr><th>Item</th><th>Winning Bid</th><th>Closed</th></tr></thead>
-          <tbody>
-    )";
+    <section id="tab-lost" class="card tx-section" aria-labelledby="Didn't Win">
+      <h3 style="margin-top:0">Didn't Win</h3>
+      <table aria-label="Auctions you didn't win">
+        <thead><tr><th>Item</th><th>Winning Bid</th><th>Closed</th></tr></thead>
+        <tbody>
+)";
     {
         const char* sql =
             "SELECT i.title, "
@@ -236,12 +258,41 @@ void TransactionsPage::handleGet() {
             }, 3);
         if (!any) std::cout << "<tr><td colspan='3'>No lost auctions.</td></tr>\n";
     }
-    std::cout << "</tbody></table></article>\n";
+    std::cout << "</tbody></table></section>\n";
 
-    // =====================================================
-    // End page
-    // =====================================================
-    std::cout << "</section>\n";
+    // ---------------------------------------------------------------------
+    // Tiny JS to switch tabs & sync with ?tab=
+    // ---------------------------------------------------------------------
+    std::cout << R"(
+    <script>
+    (function(){
+      function qs(name){
+        var m = new RegExp('[?&]'+name+'=([^&]+)').exec(location.search);
+        return m ? decodeURIComponent(m[1].replace(/\+/g,' ')) : null;
+      }
+      var tabs = document.querySelectorAll('.tx-tab');
+      var sections = document.querySelectorAll('.tx-section');
+      function activate(id){
+        sections.forEach(function(s){ s.classList.toggle('active', s.id===id); });
+        tabs.forEach(function(t){ t.setAttribute('aria-selected', t.dataset.target===id ? 'true' : 'false'); });
+      }
+      tabs.forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var id = btn.dataset.target;
+          var url = new URL(window.location.href);
+          url.searchParams.set('tab', id.replace('tab-',''));
+          history.replaceState(null,'',url);
+          activate(id);
+        });
+      });
+      var initial = qs('tab');
+      if(initial){
+        var id = 'tab-' + initial;
+        if(document.getElementById(id)) activate(id);
+      }
+    })();
+    </script>
+)";
 
     printTail("content");
 }
