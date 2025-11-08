@@ -18,4 +18,5 @@ public:
 
 protected:
     void handleGet() override; // render the Sell form (no backend logic here)
+	void handlePost() override; // Process form submission and create a listing
 };
