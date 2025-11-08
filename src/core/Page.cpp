@@ -68,7 +68,7 @@ void Page::printHead(const std::string& title, const std::string& mode) const {
     // Only show Bid/Sell when logged in
     if (isLoggedIn) {
         std::cout
-            << "        <a href='list_auctions.cgi'>Browse Auctions</a>\n"
+            << "        <a href='browse.cgi'>Browse Auctions</a>\n"
             << "        <a href='sell.cgi'>Sell</a>\n"
             << "        <a href='transactions.cgi'>My Transactions</a>\n"
             << "        <a href='logout.cgi'>Logout</a>\n";
