@@ -24,7 +24,8 @@ PAGE_SRCS   := $(SRC_DIR)/pages/IndexPage.cpp \
                $(SRC_DIR)/pages/LoginPage.cpp \
                $(SRC_DIR)/pages/RegisterPage.cpp \
                $(SRC_DIR)/pages/LogoutPage.cpp \
-               $(SRC_DIR)/pages/TransactionsPage.cpp
+               $(SRC_DIR)/pages/TransactionsPage.cpp \
+               $(SRC_DIR)/pages/SellPage.cpp
 
 MAIN_SRCS := $(wildcard $(SRC_DIR)/main_*.cpp)
 CGIS := $(patsubst $(SRC_DIR)/main_%.cpp,%,$(MAIN_SRCS))
