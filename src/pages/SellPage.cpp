@@ -28,7 +28,7 @@ void SellPage::handleGet() {
     std::cout << R"(
     <section class="card" aria-labelledby="sell-heading">
       <h2 id="sell-heading" style="margin-top:0;">Sell an Item</h2>
-      <p class="helper">All auctions run for <strong>7 days</strong> from the start date &amp; time. Images are omitted for simplicity.</p>
+      <p class="helper">All auctions run for <strong>7 days</strong> from the start date &amp; time.</p>
 
       <div id="sell-success" class="success" style="display:none;">Your item has been listed.</div>
       <div id="sell-error" class="error" style="display:none;">Please fix the errors below and try again.</div>
