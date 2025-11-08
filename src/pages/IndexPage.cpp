@@ -156,7 +156,7 @@ void IndexPage::handleGet() {
     }
     else {
         std::cout << R"(
-            <a class='btn primary' href='list_auctions.cgi'>Browse auctions</a>
+            <a class='btn primary' href='browse.cgi'>Browse auctions</a>
             <a class='btn ghost' href='transactions.cgi'>View my bids</a>
 )";
     }
