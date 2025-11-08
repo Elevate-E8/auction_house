@@ -1,4 +1,4 @@
-﻿#include "pages/LoginPage.hpp"
+#include "pages/LoginPage.hpp"
 #include "utils/utils.hpp"
 #include <iostream>
 #include <cstring>
@@ -45,20 +45,43 @@ void LoginPage::handlePost() {
     std::string email = postData_["email"];
     std::string password = postData_["password"];
 
-    if (email.empty() || password.empty()) {
+    // Minimal helper to re-render the same form with an error message
+    auto showFormWithError = [&](const std::string& msg) {
         sendHTMLHeader();
         printHead("Login · Team Elevate", "auth");
-        std::cout << "<div class='error'>Email and password are required.</div>\n";
+        if (!msg.empty()) {
+            std::cout << "    <div class='error' role='alert'>" << htmlEscape(msg) << "</div>\n";
+        }
+        std::cout
+            << "    <section class='card'>\n"
+            << "      <h1>Welcome back</h1>\n"
+            << "      <p class='muted'>Log in to continue bidding.</p>\n"
+            << "      <form method='post' action='login.cgi'>\n"
+            << "        <div>\n"
+            << "          <label for='email'>Email</label>\n"
+            << "          <input id='email' name='email' type='email' maxlength='100' required "
+            << "autocomplete='email' value='" << htmlEscape(email) << "'>\n"
+            << "        </div>\n"
+            << "        <div>\n"
+            << "          <label for='password'>Password</label>\n"
+            << "          <input id='password' name='password' type='password' minlength='8' required "
+            << "autocomplete='current-password' autofocus>\n"
+            << "        </div>\n"
+            << "        <button class='btn primary' type='submit'>Log In</button>\n"
+            << "      </form>\n"
+            << "      <div class='top-gap helper'>Don't have an account? <a href='register.cgi'>Create one</a>.</div>\n"
+            << "    </section>\n";
         printTail("auth");
+    };
+
+    if (email.empty() || password.empty()) {
+        showFormWithError("Email and password are required.");
         return;
     }
 
     MYSQL* conn = db_.connection();
     if (!conn) {
-        sendHTMLHeader();
-        printHead("Login · Team Elevate", "auth");
-        std::cout << "<div class='error'>Database connection failed. Please try again later.</div>\n";
-        printTail("auth");
+        showFormWithError("Database connection failed. Please try again later.");
         return;
     }
 
@@ -67,36 +90,30 @@ void LoginPage::handlePost() {
     const char* sql = "SELECT user_id FROM users WHERE user_email=? AND password_hash=? LIMIT 1";
 
     if (!stmt || mysql_stmt_prepare(stmt, sql, std::strlen(sql)) != 0) {
-        sendHTMLHeader();
-        printHead("Login · Team Elevate", "auth");
-        std::cout << "<div class='error'>Internal server error.</div>\n";
-        printTail("auth");
         if (stmt) mysql_stmt_close(stmt);
+        showFormWithError("Internal server error.");
         return;
     }
 
     MYSQL_BIND params[2];
     memset(params, 0, sizeof(params));
-    params[0].buffer_type = MYSQL_TYPE_STRING;
-    params[0].buffer = (char*)email.c_str();
+    params[0].buffer_type   = MYSQL_TYPE_STRING;
+    params[0].buffer        = (char*)email.c_str();
     params[0].buffer_length = email.size();
-    params[1].buffer_type = MYSQL_TYPE_STRING;
-    params[1].buffer = (char*)hashedPassword.c_str();
+    params[1].buffer_type   = MYSQL_TYPE_STRING;
+    params[1].buffer        = (char*)hashedPassword.c_str();
     params[1].buffer_length = hashedPassword.size();
 
     if (mysql_stmt_bind_param(stmt, params) != 0 || mysql_stmt_execute(stmt) != 0) {
         mysql_stmt_close(stmt);
-        sendHTMLHeader();
-        printHead("Login · Team Elevate", "auth");
-        std::cout << "<div class='error'>Internal server error.</div>\n";
-        printTail("auth");
+        showFormWithError("Internal server error.");
         return;
     }
 
     MYSQL_BIND result{};
     long long userId = 0;
     result.buffer_type = MYSQL_TYPE_LONGLONG;
-    result.buffer = &userId;
+    result.buffer      = &userId;
     result.is_unsigned = 1;
     mysql_stmt_bind_result(stmt, &result);
     mysql_stmt_store_result(stmt);
@@ -105,10 +122,8 @@ void LoginPage::handlePost() {
     mysql_stmt_close(stmt);
 
     if (fetchStatus != 0) {
-        sendHTMLHeader();
-        printHead("Login · Team Elevate", "auth");
-        std::cout << "<div class='error'>Invalid email or password.</div>\n";
-        printTail("auth");
+        // Wrong email/password -> show the same page + error, keep email filled
+        showFormWithError("Invalid email or password.");
         return;
     }
 
@@ -118,16 +133,12 @@ void LoginPage::handlePost() {
     std::string ipAddress = remoteAddr ? std::string(remoteAddr) : "unknown";
     session_.create(userId, sessionToken, ipAddress);
 
-    // ---------------------------------------------------------
-    // IMPORTANT: Cookie header must come *before* HTML output
-    // ---------------------------------------------------------
+    // Cookie header must come before any HTML
     std::cout << "Content-Type: text/html\r\n";
     std::cout << "Set-Cookie: session_token=" << sessionToken
-        << "; Path=/; HttpOnly; SameSite=Lax\r\n\r\n";
+              << "; Path=/; HttpOnly; SameSite=Lax\r\n\r\n";
 
-    // ---------------------------------------------------------
-    // HTML Response
-    // ---------------------------------------------------------
+    // Success page
     printHead("Login Successful", "auth");
     std::cout
         << "    <section class='card' role='status' aria-live='polite'>\n"
