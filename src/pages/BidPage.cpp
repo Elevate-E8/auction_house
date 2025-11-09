@@ -2,207 +2,310 @@
 #include "pages/BidPage.hpp"
 #include "utils/utils.hpp"
 #include <iostream>
+#include <cstring>
+#include <cstdlib>
 
 BidPage::BidPage(Database& db, Session& session)
     : Page(db, session) {}
 
+
 // -------------------------------------------------------------
-// GET — Render the Bid page (purely presentational template)
+// Helper: fetch active items, excluding the current user's own
 // -------------------------------------------------------------
-void BidPage::handleGet() {
-    sendHTMLHeader();
-    printHead("Bid on Item · Team Elevate Auctions");
 
-    // NOTE TO BACKEND:
-    // Replace these placeholders with real values from the DB/querystring.
-    // Keep the same element IDs so the layout remains consistent.
-    const std::string ITEM_NAME       = "ITEM_NAME";        // ex: "Vintage Camera"
-    const std::string ITEM_CONDITION  = "";                 // ex: "Like New" (PILL REMOVED; leave empty or ignore)
-    const std::string ITEM_DESC       = "DESCRIPTION";      // ex: long text
-    const std::string STARTING_PRICE  = "$STARTING_PRICE";  // ex: "$99.00"
-    const std::string CURRENT_BID     = "$CURRENT_BID";     // ex: "$120.00"
-    const std::string END_ISO         = "";                 // ex: "2025-05-01T17:30:00Z" (optional)
+std::vector<BidPage::ItemOption> BidPage::fetchActiveItemsExcludingSeller(long excludeSellerId) {
+    std::vector<ItemOption> items;
+    MYSQL* conn = db_.connection();
+    if (!conn) return items;
 
-    std::cout << R"(
-    <style>
-      /* Page-local styles for the hero band and centered button */
-      .bid-hero {
-        background: linear-gradient(135deg, #111827, #1f2937 50%, #111827);
-        color: #fff;
-        border-radius: 12px;
-        padding: 16px 18px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-      }
-      .bid-hero h2 {
-        margin: 0;
-        font-size: 22px;
-        letter-spacing: .3px;
-      }
-      /* Condition pill REMOVED on request — intentionally unused */
-      .cond-pill { display: none; }
+    const char* sql =
+        "SELECT i.item_id, i.title "
+        "FROM items i "
+        "WHERE i.start_time <= NOW() "
+        "  AND i.end_time > NOW() "
+        "  AND (? <= 0 OR i.seller_id <> ?) "
+        "ORDER BY i.end_time ASC, i.title ASC";
 
-      .bid-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 18px;
-      }
-      .price-box {
-        background: #fff;
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 16px;
-      }
-      .stat-label {
-        color: #64748b;
-        font-size: 14px;
-        margin-bottom: 6px;
-      }
-      .stat-value {
-        font-weight: 800;
-        font-size: 18px;
-        letter-spacing: .2px;
-        color: #0f172a;
-      }
-      .bid-form {
-        margin-top: 12px;
-        border-top: 1px solid var(--border);
-        padding-top: 12px;
-      }
-      .bid-row {
-        display: grid;
-        grid-template-columns: 1fr auto; /* input, then button */
-        gap: 10px;
-        align-items: center;
-      }
-      .bid-actions {
-        display: flex;
-        justify-content: center; /* center the Place Bid button */
-        margin-top: 10px;
-      }
-      .bid-note, .bid-tip { color: var(--muted); font-size: 13px; }
-      .banner { margin: 10px 0; }
-    </style>
+    MYSQL_STMT* stmt = mysql_stmt_init(conn);
+    if (!stmt) return items;
 
-    <!-- (Optional) Inline banner areas (toggle display via backend) -->
-    <div id="bid-error" class="banner error" style="display:none;">Please enter a bid amount.</div>
-    <div id="bid-ok" class="banner success" style="display:none;">Your bid was placed.</div>
+    if (mysql_stmt_prepare(stmt, sql, std::strlen(sql)) != 0) {
+        mysql_stmt_close(stmt);
+        return items;
+    }
 
-    <section class="card">
-)";
+    MYSQL_BIND p[2]; std::memset(p, 0, sizeof(p));
+    long ex = excludeSellerId;
+    p[0].buffer_type = MYSQL_TYPE_LONG; p[0].buffer = &ex; p[0].is_unsigned = 1;
+    p[1].buffer_type = MYSQL_TYPE_LONG; p[1].buffer = &ex; p[1].is_unsigned = 1;
 
-    // Hero band: item name only (condition pill removed)
-    std::cout
-        << "      <div class='bid-hero'>\n"
-        << "        <div>\n"
-        << "          <h2>" << htmlEscape(ITEM_NAME) << "</h2>\n"
-        << "          <div class='muted' style='margin-top:2px;'>Item detail page</div>\n"
-        << "        </div>\n"
-        << "        <!-- condition pill intentionally removed -->\n"
-        << "      </div>\n";
+    mysql_stmt_bind_param(stmt, p);
+    if (mysql_stmt_execute(stmt) != 0) {
+        mysql_stmt_close(stmt);
+        return items;
+    }
 
-    // Description
-    std::cout << R"(
-      <h3 style="margin:18px 0 8px;">Description</h3>
-)";
-    std::cout << "      <div class='muted' style='white-space:pre-wrap;'>"
-              << htmlEscape(ITEM_DESC) << "</div>\n";
+    long idBuf = 0;
+    char titleBuf[256]; unsigned long titleLen = 0;
 
-    // Prices + form
-    std::cout << R"(
-      <div class="price-box" style="margin-top:16px;">
-        <div class="bid-grid">
-          <div>
-            <div class="stat-label">Starting price</div>
-            <div class="stat-value">)";
+    MYSQL_BIND r[2]; std::memset(r, 0, sizeof(r));
+    r[0].buffer_type = MYSQL_TYPE_LONG;   r[0].buffer = &idBuf;   r[0].is_unsigned = 1;
+    r[1].buffer_type = MYSQL_TYPE_STRING; r[1].buffer = titleBuf; r[1].buffer_length = sizeof(titleBuf); r[1].length = &titleLen;
 
-    std::cout << htmlEscape(STARTING_PRICE) << R"(</div>
-            <div class="bid-note" id="endLine">Ends: TBD</div>
-          </div>
-
-          <div>
-            <div class="stat-label">Current bid</div>
-            <div class="stat-value">)";
-
-    std::cout << htmlEscape(CURRENT_BID) << R"(</div>
-          </div>
-        </div>
-
-        <div class="bid-form">
-          <div class="stat-label">Your bid</div>
-          <div class="bid-row">
-            <input id="bidAmount" name="amount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
-          </div>
-
-          <div class="bid-actions">
-            <button class="btn primary" id="placeBidBtn" type="button">Place<br>Bid</button>
-          </div>
-
-          <div class="bid-note" style="margin-top:10px;">
-            Your bid must be greater than the current bid.
-          </div>
-          <div class="bid-tip" style="margin-top:4px;">
-            Tip: Typical increments are $1.00.
-          </div>
-        </div>
-      </div>
-    </section>
-)";
-
-    // Small helper JS: update "Ends:" if END_ISO is provided (no backend required)
-    std::cout << R"(
-    <script>
-      (function () {
-        var iso = )";
-
-    // Emit the ISO string safely into JS
-    std::cout << "\"" << htmlEscape(END_ISO) << "\"";
-
-    std::cout << R"(;
-        var endLine = document.getElementById('endLine');
-        if (iso && endLine) {
-          var d = new Date(iso);
-          if (!isNaN(d.getTime())) {
-            var pad = n => (n<10?'0':'') + n;
-            var txt = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate())
-                    + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-            endLine.textContent = 'Ends: ' + txt + ' (local time)';
-          }
-        }
-
-        // Demo-only click (no backend): show error if empty
-        var btn = document.getElementById('placeBidBtn');
-        var amt = document.getElementById('bidAmount');
-        var ok  = document.getElementById('bid-ok');
-        var er  = document.getElementById('bid-error');
-        if (btn && amt) {
-          btn.addEventListener('click', function(){
-            if (!amt.value) {
-              if (er) er.style.display = 'block';
-              if (ok) ok.style.display = 'none';
-            } else {
-              if (ok) ok.style.display = 'block';
-              if (er) er.style.display = 'none';
-            }
-          });
-        }
-      })();
-    </script>
-)";
-
-    printTail();
+    mysql_stmt_bind_result(stmt, r);
+    while (mysql_stmt_fetch(stmt) == 0) {
+        ItemOption opt; opt.id = idBuf; opt.title.assign(titleBuf, titleLen);
+        items.push_back(opt);
+    }
+    mysql_stmt_close(stmt);
+    return items;
 }
 
 // -------------------------------------------------------------
-// POST — Placeholder (so linking succeeds). Backend will:
-//  - read POST fields
-//  - validate amount > current bid
-//  - write bid
-//  - redirect/render with status
+// Helper: load seller, start price, current max bid, active flag
+// -------------------------------------------------------------
+bool BidPage::loadItemAndState(long itemId,
+    long& sellerId,
+    double& startPrice,
+    double& currentMaxBid,
+    bool& isActive) {
+    MYSQL* conn = db_.connection();
+    if (!conn) return false;
+
+    const char* sql =
+        "SELECT i.seller_id, i.start_price, "
+        "       IFNULL((SELECT MAX(b.bid_amount) FROM bids b WHERE b.item_id=i.item_id), 0) AS max_bid, "
+        "       (NOW() BETWEEN i.start_time AND i.end_time) AS is_active "
+        "FROM items i WHERE i.item_id=? LIMIT 1";
+
+    MYSQL_STMT* stmt = mysql_stmt_init(conn);
+    if (!stmt) return false;
+
+    if (mysql_stmt_prepare(stmt, sql, std::strlen(sql)) != 0) {
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    MYSQL_BIND p{}; std::memset(&p, 0, sizeof(p));
+    p.buffer_type = MYSQL_TYPE_LONG; p.buffer = &itemId; p.is_unsigned = 1;
+    mysql_stmt_bind_param(stmt, &p);
+
+    long seller = 0; double start = 0, maxBid = 0; int active = 0;
+
+    MYSQL_BIND r[4]; std::memset(r, 0, sizeof(r));
+    r[0].buffer_type = MYSQL_TYPE_LONG;   r[0].buffer = &seller; r[0].is_unsigned = 1;
+    r[1].buffer_type = MYSQL_TYPE_DOUBLE; r[1].buffer = &start;
+    r[2].buffer_type = MYSQL_TYPE_DOUBLE; r[2].buffer = &maxBid;
+    r[3].buffer_type = MYSQL_TYPE_LONG;   r[3].buffer = &active;
+
+    mysql_stmt_bind_result(stmt, r);
+    bool ok = (mysql_stmt_execute(stmt) == 0) && (mysql_stmt_fetch(stmt) == 0);
+    mysql_stmt_close(stmt);
+    if (!ok) return false;
+
+    sellerId = seller;
+    startPrice = start;
+    currentMaxBid = maxBid;
+    isActive = (active != 0);
+    return true;
+}
+
+
+
+
+
+
+// -------------------------------------------------------------
+// GET — render form (excludes user’s own items if logged in)
+// -------------------------------------------------------------
+void BidPage::handleGet() {
+    long exclude = session_.validate() ? session_.userId() : 0;
+    auto items = fetchActiveItemsExcludingSeller(exclude);
+    renderForm(items);
+}
+
+// -------------------------------------------------------------
+// POST — validate and insert bid
 // -------------------------------------------------------------
 void BidPage::handlePost() {
-    // For now, just re-render the template.
-    handleGet();
+    // Page::run() has already filled postData_ for POST. :contentReference[oaicite:1]{index=1}
+    if (!session_.validate()) {
+        auto items = fetchActiveItemsExcludingSeller(0);
+        renderForm(items, "You must be logged in to place a bid.");
+        return;
+    }
+
+    long userId = session_.userId();
+
+    std::string itemIdStr = postData_["item_id"];
+    std::string amountStr = postData_["bid_amount"];
+    long itemId = 0;
+    double amount = 0.0;
+
+    // Basic input validation
+    char* endp = nullptr;
+    if (itemIdStr.empty() || (itemId = std::strtol(itemIdStr.c_str(), &endp, 10)) <= 0 || *endp != '\0') {
+        auto items = fetchActiveItemsExcludingSeller(userId);
+        renderForm(items, "Please select a valid item.", "", 0, amountStr);
+        return;
+    }
+    try {
+        size_t pos = 0;
+        amount = std::stod(amountStr, &pos);
+        if (pos != amountStr.size() || amount <= 0.0) throw std::runtime_error("bad");
+    }
+    catch (...) {
+        auto items = fetchActiveItemsExcludingSeller(userId);
+        renderForm(items, "Enter a valid positive bid amount.", "", itemId, amountStr);
+        return;
+    }
+
+    // Load item state
+    long sellerId = 0; double startPrice = 0.0; double currentMax = 0.0; bool isActive = false;
+    if (!loadItemAndState(itemId, sellerId, startPrice, currentMax, isActive)) {
+        auto items = fetchActiveItemsExcludingSeller(userId);
+        renderForm(items, "Selected item does not exist.", "", 0, amountStr);
+        return;
+    }
+
+    // Business rules
+    if (sellerId == userId) {
+        auto items = fetchActiveItemsExcludingSeller(userId);
+        renderForm(items, "You cannot bid on your own item.", "", itemId, amountStr);
+        return;
+    }
+    if (!isActive) {
+        auto items = fetchActiveItemsExcludingSeller(userId);
+        renderForm(items, "This auction is not currently active.", "", itemId, amountStr);
+        return;
+    }
+
+    double floor = (currentMax > startPrice ? currentMax : startPrice);
+    if (amount <= floor) {
+        char msg[160];
+        std::snprintf(msg, sizeof(msg),
+            "Your bid must be greater than the current highest bid (or start price): $%.2f.",
+            floor);
+        auto items = fetchActiveItemsExcludingSeller(userId);
+        renderForm(items, msg, "", itemId, amountStr);
+        return;
+    }
+
+    // Insert bid
+    MYSQL* conn = db_.connection();                 // use existing DB connection :contentReference[oaicite:2]{index=2}
+    if (!conn) {
+        auto items = fetchActiveItemsExcludingSeller(userId);
+        renderForm(items, "Database connection failed. Please try again.", "", itemId, amountStr);
+        return;
+    }
+
+    const char* sql =
+        "INSERT INTO bids (item_id, bidder_id, bid_amount, bid_time) "
+        "VALUES (?, ?, ?, NOW())";
+    MYSQL_STMT* stmt = mysql_stmt_init(conn);
+    if (!stmt || mysql_stmt_prepare(stmt, sql, std::strlen(sql)) != 0) {
+        if (stmt) mysql_stmt_close(stmt);
+        auto items = fetchActiveItemsExcludingSeller(userId);
+        renderForm(items, "Internal error. Please try again.", "", itemId, amountStr);
+        return;
+    }
+
+    MYSQL_BIND bp[3]; std::memset(bp, 0, sizeof(bp));
+    bp[0].buffer_type = MYSQL_TYPE_LONG;   bp[0].buffer = &itemId; bp[0].is_unsigned = 1;
+    bp[1].buffer_type = MYSQL_TYPE_LONG;   bp[1].buffer = &userId; bp[1].is_unsigned = 1;
+    bp[2].buffer_type = MYSQL_TYPE_DOUBLE; bp[2].buffer = &amount;
+
+    if (mysql_stmt_bind_param(stmt, bp) != 0 || mysql_stmt_execute(stmt) != 0) {
+        std::string err = mysql_stmt_error(stmt);
+        mysql_stmt_close(stmt);
+        auto items = fetchActiveItemsExcludingSeller(userId);
+        renderForm(items, "Failed to place bid: " + err, "", itemId, amountStr);
+        return;
+    }
+    mysql_stmt_close(stmt);
+
+    // (Optional) You could refresh items and show success
+    auto items = fetchActiveItemsExcludingSeller(userId);
+    char ok[128]; std::snprintf(ok, sizeof(ok), "Your bid of $%.2f has been placed.", amount);
+    renderForm(items, "", ok);
+}
+
+
+// -------------------------------------------------------------
+// Shared renderer
+// -------------------------------------------------------------
+void BidPage::renderForm(const std::vector<ItemOption>& items,
+    const std::string& flashError,
+    const std::string& flashSuccess,
+    long selectedItemId,
+    const std::string& enteredAmount) {
+    sendHTMLHeader();
+    printHead("Place a Bid · Team Elevate Auctions");
+
+    const bool loggedIn = session_.validate();
+    if (!loggedIn) {
+        std::cout << R"(<div class="error" role="alert">
+          You must be logged in to place a bid.
+          <a href="login.cgi">Log in</a> or <a href="register.cgi">create an account</a>.
+        </div>)";
+    }
+    else {
+        std::cout << "  <div class='success' role='status'>Logged in as <strong>"
+            << htmlEscape(session_.userEmail()) << "</strong></div>\n";
+    }
+
+    if (!flashError.empty())
+        std::cout << "  <div class='error' role='alert'>" << htmlEscape(flashError) << "</div>\n";
+    if (!flashSuccess.empty())
+        std::cout << "  <div class='success' role='status'>" << htmlEscape(flashSuccess) << "</div>\n";
+
+    std::cout << R"(
+<section class="card" aria-labelledby="bid-heading">
+  <h2 id="bid-heading" style="margin-top:0;">Bid on an Item</h2>
+  <p class="helper">Choose an active listing and enter your highest bid. You cannot bid on your own items.</p>
+)";
+
+    if (items.empty()) {
+        std::cout << R"(
+  <div class="muted">There are no eligible items available to bid on right now.</div>
+</section>
+)";
+        printTail();
+        return;
+    }
+
+    std::cout << R"(
+  <form method="post" action="bid.cgi" novalidate>
+    <label for="itemSelect">Item</label>
+    <select id="itemSelect" name="item_id" required
+            style="width:100%; padding:12px 14px; border:1px solid var(--border);
+                   border-radius:12px; font-size:15px; background:#fff;">
+      <option value="">Select an item…</option>
+)";
+
+    for (const auto& it : items) {
+        std::cout << "      <option value='" << it.id << "'";
+        if (selectedItemId == it.id) std::cout << " selected";
+        std::cout << ">" << htmlEscape(it.title) << "</option>\n";
+    }
+
+    std::cout << R"(
+    </select>
+
+    <label for="bidAmount" style="margin-top:12px;">Your highest bid</label>
+    <input id="bidAmount" name="bid_amount" type="number" inputmode="decimal"
+           step="0.01" min="0.01" placeholder="0.00" required
+           value=")";
+    std::cout << htmlEscape(enteredAmount) << R"(" />
+
+    <div style="display:flex; gap:10px; margin-top:16px;">
+      <button class="btn primary" type="submit")";
+    if (!loggedIn) std::cout << " disabled";
+    std::cout << R"(>Place Bid</button>
+      <a class="btn" href="index.cgi" style="border:1px solid var(--border); background:#fff;">Cancel</a>
+    </div>
+  </form>
+</section>
+)";
+    printTail();
 }
