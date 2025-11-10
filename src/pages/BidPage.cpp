@@ -300,14 +300,19 @@ void BidPage::renderForm(const std::vector<ItemOption>& items,
     <input id="bidAmount" name="bid_amount" type="number" inputmode="decimal"
            step="0.01" min="0.01" placeholder="0.00" required
            value=")";
-    std::cout << htmlEscape(enteredAmount) << R"(" />
+    // Submit button with optional disabled for not-logged-in users
+    std::cout << "      <button class='btn primary' type='submit'";
+    if (!loggedIn) {
+        std::cout << " disabled";
+    }
+    std::cout << ">Place Bid</button>\n";
 
-    <div style="display:flex; gap:10px; margin-top:16px;">
-      <button class="btn primary" type="submit")";
-    if (!loggedIn) std::cout << " disabled";
-    std::cout << R"(>Place Bid</button>
-      <a class="btn" href="index.cgi" style="border:1px solid var(--border); background:#fff;">Cancel</a>
-    </div>
+    // Cancel link
+    std::cout << "      <a class='btn' href='index.cgi' "
+        "style='border:1px solid var(--border); background:#fff;'>Cancel</a>\n";
+    std::cout << "    </div>\n";
+
+    std::cout << R"(
   </form>
 </section>
 )";
