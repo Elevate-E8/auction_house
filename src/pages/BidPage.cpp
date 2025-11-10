@@ -4,6 +4,8 @@
 #include <iostream>
 #include <cstring>
 #include <cstdlib>
+#include <stdexcept>
+#include <cstdio>
 
 BidPage::BidPage(Database& db, Session& session)
     : Page(db, session) {}
@@ -46,7 +48,8 @@ std::vector<BidPage::ItemOption> BidPage::fetchActiveItemsExcludingSeller(long e
     }
 
     long idBuf = 0;
-    char titleBuf[256]; unsigned long titleLen = 0;
+    char titleBuf[256]{};
+    unsigned long titleLen = 0;
 
     MYSQL_BIND r[2]; std::memset(r, 0, sizeof(r));
     r[0].buffer_type = MYSQL_TYPE_LONG;   r[0].buffer = &idBuf;   r[0].is_unsigned = 1;
@@ -128,7 +131,7 @@ void BidPage::handleGet() {
 // POST — validate and insert bid
 // -------------------------------------------------------------
 void BidPage::handlePost() {
-    // Page::run() has already filled postData_ for POST. :contentReference[oaicite:1]{index=1}
+    // Page::run() has already filled postData_ for POST.
     if (!session_.validate()) {
         auto items = fetchActiveItemsExcludingSeller(0);
         renderForm(items, "You must be logged in to place a bid.");
@@ -192,7 +195,8 @@ void BidPage::handlePost() {
     }
 
     // Insert bid
-    MYSQL* conn = db_.connection();                 // use existing DB connection :contentReference[oaicite:2]{index=2}
+    // use existing DB connection
+    MYSQL* conn = db_.connection();
     if (!conn) {
         auto items = fetchActiveItemsExcludingSeller(userId);
         renderForm(items, "Database connection failed. Please try again.", "", itemId, amountStr);

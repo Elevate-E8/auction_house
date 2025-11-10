@@ -48,6 +48,5 @@ private:
         long selectedItemId = 0,
         const std::string& enteredAmount = "");
 };
-};
 
 #endif // PAGES_BIDPAGE_HPP
