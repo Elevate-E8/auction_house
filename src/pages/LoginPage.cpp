@@ -19,7 +19,7 @@ void LoginPage::handleGet() {
 
     std::cout
         << "    <section class='card'>\n"
-        << "      <h1>Welcome back</h1>\n"
+        << "      <h2>Welcome back</h2>\n"
         << "      <p class='muted'>Log in to continue bidding.</p>\n"
         << "      <form method='post' action='login.cgi'>\n"
         << "        <div>\n"
@@ -54,7 +54,7 @@ void LoginPage::handlePost() {
         }
         std::cout
             << "    <section class='card'>\n"
-            << "      <h1>Welcome back</h1>\n"
+            << "      <h2>Welcome back</h2>\n"
             << "      <p class='muted'>Log in to continue bidding.</p>\n"
             << "      <form method='post' action='login.cgi'>\n"
             << "        <div>\n"
@@ -142,7 +142,7 @@ void LoginPage::handlePost() {
     printHead("Login Successful", "auth");
     std::cout
         << "    <section class='card' role='status' aria-live='polite'>\n"
-        << "      <h1>✓ Login successful</h1>\n"
+        << "      <h2>✓ Login successful</h2>\n"
         << "      <div class='success'>Signed in as <strong>" << htmlEscape(email) << "</strong>.</div>\n"
         << "      <p class='muted'>Redirecting to the homepage…</p>\n"
         << "      <meta http-equiv='refresh' content='2;url=index.cgi'>\n"
