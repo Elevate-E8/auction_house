@@ -108,26 +108,60 @@ void TransactionsPage::handleGet() {
           font-weight:700; cursor:pointer;
         }
         .tx-tab[aria-selected="true"]{
-          outline:2px solid #fb923c; /* orange ring like your mock */
+          outline:2px solid #fb923c;
           outline-offset:2px;
         }
         .tx-section{ display:none; margin-top:16px; }
         .tx-section.active{ display:block; }
+        .muted{ color:#6b7280; }
+
+        /* ---- Tables ---- */
+        table{ width:100%; border-collapse:separate; border-spacing:0; }
+        th, td{ padding:14px 16px; vertical-align:middle; }
+        thead th{ background:#f3f4f6; font-weight:700; text-align:left; }
+
+        /* Current Bids layout fixes */
+        .cbids{ table-layout:fixed; }
+        /* Column widths so the Action cell has space */
+        .cbids col:nth-child(1){ width:38%; } /* Item */
+        .cbids col:nth-child(2){ width:18%; } /* Current Leader */
+        .cbids col:nth-child(3){ width:16%; } /* Highest Bid */
+        .cbids col:nth-child(4){ width:16%; } /* Your Max */
+        .cbids col:nth-child(5){ width:12%; min-width:160px; } /* Action */
+
+        .name-wrap{
+          display:block;
+          white-space:normal;         /* allow multi-line */
+          overflow-wrap:anywhere;     /* break long words if needed */
+          line-height:1.35;
+        }
+
+        .action-cell{
+          display:flex;
+          align-items:center;
+          gap:10px;
+          justify-content:flex-start;
+          width:100%;
+        }
+        .inline-form{ display:flex; align-items:center; gap:10px; width:100%; }
+        .inline-form input[type=number]{ min-width:9rem; max-width:100%; }
+        .inline-form .btn{ white-space:nowrap; }
       </style>
     </section>
 )";
 
-    // We’ll render the 4 sections now (same queries you already had),
-    // but each wrapped in a .tx-section container.
-
     // =====================================================
-    // SELLING (your existing query; shows Active/Closed in a column)
+    // SELLING  
     // =====================================================
     std::cout << R"(
     <section id="tab-selling" class="card tx-section active" aria-labelledby="Selling">
       <h3 style="margin-top:0">Selling</h3>
-      <table aria-label="Items you are selling">
-        <thead><tr><th>Item</th><th>Status</th><th>Ends</th></tr></thead>
+      <table aria-label="Items you are selling" class="selling">
+        <thead>
+          <tr>
+            <th>Item</th><th>Status</th><th>Ends</th><th>Current Bidder</th><th>Highest Bid</th>
+          </tr>
+        </thead>
         <tbody>
 )";
     {
@@ -144,14 +178,25 @@ void TransactionsPage::handleGet() {
                 std::string title(htmlEscape((char*)res[0].buffer));
                 std::string status(htmlEscape((char*)res[1].buffer));
                 std::string ends(htmlEscape((char*)res[2].buffer));
-                std::cout << "<tr><td>" << title << "</td><td>" << status << "</td><td>" << ends << "</td></tr>\n";
+
+                // Placeholders (backend will fill these later)
+                std::string leader = "—";
+                std::string highest = "0.00";
+
+                std::cout << "<tr>"
+                          << "<td><span class='name-wrap'>" << title << "</span></td>"
+                          << "<td>" << status << "</td>"
+                          << "<td>" << ends << "</td>"
+                          << "<td>" << leader << "</td>"
+                          << "<td>$" << highest << "</td>"
+                          << "</tr>\n";
             }, 3);
-        if (!any) std::cout << "<tr><td colspan='3'>No listings.</td></tr>\n";
+        if (!any) std::cout << "<tr><td colspan='5'>No listings.</td></tr>\n";
     }
     std::cout << "</tbody></table></section>\n";
 
     // =====================================================
-    // PURCHASES
+    // PURCHASES 
     // =====================================================
     std::cout << R"(
     <section id="tab-purchases" class="card tx-section" aria-labelledby="Purchases">
@@ -174,21 +219,23 @@ void TransactionsPage::handleGet() {
                 std::string title(htmlEscape((char*)res[0].buffer));
                 std::string bid(htmlEscape((char*)res[1].buffer));
                 std::string closed(htmlEscape((char*)res[2].buffer));
-                std::cout << "<tr><td>" << title << "</td><td>$" << bid << "</td><td>" << closed << "</td></tr>\n";
+                std::cout << "<tr><td><span class='name-wrap'>" << title << "</span></td><td>$" << bid << "</td><td>" << closed << "</td></tr>\n";
             }, 3);
         if (!any) std::cout << "<tr><td colspan='3'>No purchases yet.</td></tr>\n";
     }
     std::cout << "</tbody></table></section>\n";
 
     // =====================================================
-    // CURRENT BIDS
+    // CURRENT BIDS 
     // =====================================================
     std::cout << R"(
     <section id="tab-bids" class="card tx-section" aria-labelledby="Current Bids">
       <h3 style="margin-top:0">Current Bids</h3>
       <table class="cbids" aria-label="Current bids">
-        <colgroup><col><col><col><col></colgroup>
-        <thead><tr><th>Item</th><th>Highest Bid</th><th>Your Max</th><th>Action</th></tr></thead>
+        <colgroup><col><col><col><col><col></colgroup>
+        <thead>
+          <tr><th>Item</th><th>Current Leader</th><th>Highest Bid</th><th>Your Max</th><th>Action</th></tr>
+        </thead>
         <tbody>
 )";
     {
@@ -210,25 +257,31 @@ void TransactionsPage::handleGet() {
                 std::string title(htmlEscape((char*)res[1].buffer));
                 std::string highest(htmlEscape((char*)res[2].buffer));
                 std::string yourmax(htmlEscape((char*)res[3].buffer));
+
+                std::string leader = "—"; // backend will populate real leader
+
                 std::cout << "<tr>\n"
-                    << "  <td>" << title << "</td>\n"
+                    << "  <td><span class='name-wrap'>" << title << "</span></td>\n"
+                    << "  <td>" << leader << "</td>\n"
                     << "  <td>$" << highest << "</td>\n"
                     << "  <td>$" << yourmax << "</td>\n"
                     << "  <td>\n"
-                    << "    <form class='inline-form' action='bid.cgi' method='post'>\n"
-                    << "      <input type='hidden' name='item_id' value='" << item_id << "'>\n"
-                    << "      <input name='bid_amount' type='number' step='0.01' placeholder='Enter new max' required>\n"
-                    << "      <button class='btn primary' type='submit'>Increase</button>\n"
-                    << "    </form>\n"
+                    << "    <div class='action-cell'>\n"
+                    << "      <form class='inline-form' action='bid.cgi' method='post'>\n"
+                    << "        <input type='hidden' name='item_id' value='" << item_id << "'>\n"
+                    << "        <input name='bid_amount' type='number' step='0.01' placeholder='Enter new max' required>\n"
+                    << "        <button class='btn primary' type='submit'>Increase</button>\n"
+                    << "      </form>\n"
+                    << "    </div>\n"
                     << "  </td>\n"
                     << "</tr>\n";
             }, 4);
-        if (!any) std::cout << "<tr><td colspan='4'>No active bids.</td></tr>\n";
+        if (!any) std::cout << "<tr><td colspan='5'>No active bids.</td></tr>\n";
     }
     std::cout << "</tbody></table></section>\n";
 
     // =====================================================
-    // LOST
+    // LOST 
     // =====================================================
     std::cout << R"(
     <section id="tab-lost" class="card tx-section" aria-labelledby="Didn't Win">
@@ -254,7 +307,7 @@ void TransactionsPage::handleGet() {
                 std::string title(htmlEscape((char*)res[0].buffer));
                 std::string bid(htmlEscape((char*)res[1].buffer));
                 std::string closed(htmlEscape((char*)res[2].buffer));
-                std::cout << "<tr><td>" << title << "</td><td>$" << bid << "</td><td>" << closed << "</td></tr>\n";
+                std::cout << "<tr><td><span class='name-wrap'>" << title << "</span></td><td>$" << bid << "</td><td>" << closed << "</td></tr>\n";
             }, 3);
         if (!any) std::cout << "<tr><td colspan='3'>No lost auctions.</td></tr>\n";
     }
