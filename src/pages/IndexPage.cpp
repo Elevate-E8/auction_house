@@ -125,14 +125,18 @@ void IndexPage::handleGet() {
     if (isLoggedIn) {
         std::cout << R"(
           <a href="browse.cgi">Browse Auctions</a>
+          <a href="bid.cgi">Bid</a>
           <a href="sell.cgi">Sell</a>
           <a href="transactions.cgi">My Transactions</a>
           <a href="logout.cgi">Logout</a>
 )";
     }
     else {
-        // NOTE: no Sell/Bid links when logged out
+        // NOTE:  when logged out
         std::cout << R"(
+          <a href="browse.cgi">Browse Auctions</a>
+          <a href="bid.cgi">Bid</a>
+          <a href="sell.cgi">Sell</a>
           <a href="login.cgi">Login</a>
           <a href="register.cgi">Register</a>
 )";
@@ -156,8 +160,8 @@ void IndexPage::handleGet() {
     }
     else {
         std::cout << R"(
-            <a class='btn primary' href='browse.cgi'>Browse auctions</a>
-            <a class='btn ghost' href='transactions.cgi'>View my bids</a>
+            <a class='btn primary' href='browse.cgi'>Browse Auctions</a>
+            <a class='btn ghost' href='transactions.cgi'>View my Transactions</a>
 )";
     }
 
