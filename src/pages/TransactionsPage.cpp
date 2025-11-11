@@ -90,7 +90,7 @@ void TransactionsPage::handleGet() {
     std::cout << R"(
     <section class="card">
       
-      <h1 style="margin:0 0 8px">My Transactions</h1>
+      <h2 style="margin:0 0 8px">My Transactions</h2>
       <p class="muted">Your selling activity, purchases, current bids, and items you didn't win.</p>
 
       <div role="tablist" aria-label="Transactions Tabs" class="tx-tabs" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
