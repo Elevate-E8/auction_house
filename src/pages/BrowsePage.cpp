@@ -10,14 +10,11 @@ void BrowsePage::handleGet() {
     sendHTMLHeader();
     printHead("Browse Auctions · Team Elevate Auctions");
 
-    // (Optional) gate: if you ever want to force login to view this page,
-    // check session_.validate() here and show a message instead.
-
     std::cout << R"(
 <section class="card" aria-labelledby="browse-heading">
   <h2 id="browse-heading" style="margin-top:0">Browse Auctions</h2>
 
-  <!-- Top controls (purely visual — backend may wire them up later) -->
+  <!-- Top controls (visual only; backend can wire up later) -->
   <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
     <input type="search" placeholder="Search items..." aria-label="Search items"
            style="flex:1; min-width:220px; padding:10px 12px; border:1px solid var(--border); border-radius:12px; font-size:14px; background:#fff;" />
@@ -46,7 +43,7 @@ void BrowsePage::handleGet() {
         overflow:hidden;
         background:#fff;
       ">
-    <table aria-describedby="browse-note" style="margin:0;">
+    <table aria-label="Auction items list" style="margin:0;">
       <colgroup>
         <col style="width:48%;">
         <col style="width:18%;">
@@ -73,12 +70,12 @@ void BrowsePage::handleGet() {
           <col style="width:16%;">
         </colgroup>
         <tbody id="js-rows">
-          <!-- Back-end DEVs: inject one <tr> per item here.
-               Expected columns:
+          <!-- Backend: inject one <tr> per item here.
+               Columns:
                <td>ITEM_NAME</td>
-               <td>CONDITION (New / Like New / Good / Fair / Poor)</td>
+               <td>CONDITION</td>
                <td>$CURRENT_BID</td>
-               <td>TIME_LEFT (e.g., 2d 3h or 05:18:12)</td>
+               <td>TIME_LEFT</td>
           -->
         </tbody>
       </table>
@@ -98,11 +95,6 @@ void BrowsePage::handleGet() {
     <button id="pgNext" class="btn" type="button"
             style="border:1px solid var(--border); background:#fff; padding:8px 14px;">Next</button>
   </div>
-
-  <p id="browse-note" class="helper" style="margin-top:12px;">
-    This is a visual template. Backend will inject rows into the table body (<code>#js-rows</code>)
-    and may wire search/filter/sort server-side later.
-  </p>
 </section>
 
 <script>
@@ -126,20 +118,16 @@ void BrowsePage::handleGet() {
     var total = rows.length;
     var pages = Math.max(1, Math.ceil(total / pageSize));
 
-    // Clamp current
     if (current > pages) current = pages;
     if (current < 1) current = 1;
 
-    // Show/hide empty state
     emptyState.style.display = total === 0 ? 'block' : 'none';
 
-    // Hide all rows then show the slice for the current page
     rows.forEach(function (tr) { tr.style.display = 'none'; });
     var start = (current - 1) * pageSize;
     var end = start + pageSize;
     rows.slice(start, end).forEach(function (tr) { tr.style.display = ''; });
 
-    // Controls
     pgPrev.disabled = (current === 1 || total === 0);
     pgNext.disabled = (current === pages || total === 0);
     pgLabel.textContent = 'Page ' + current;
@@ -148,11 +136,9 @@ void BrowsePage::handleGet() {
   pgPrev.addEventListener('click', function(){ current--; render(); });
   pgNext.addEventListener('click', function(){ current++; render(); });
 
-  // If your backend injects rows after load, it can call window.refreshBrowse()
-  // to recompute pagination without reloading the page.
+  // If backend injects rows after load, call window.refreshBrowse()
   window.refreshBrowse = render;
 
-  // Initial draw
   render();
 })();
 </script>
