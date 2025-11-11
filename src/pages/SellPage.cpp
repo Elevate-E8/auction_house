@@ -38,7 +38,7 @@ void SellPage::handleGet() {
         <!-- Item name -->
         <label for="itemName">Item name</label>
         <input id="itemName" name="item_name" type="text" maxlength="120"
-               placeholder="e.g., Nintendo Switch OLED, 64GB" required />
+               placeholder="e.g., Nintendo Switch OLED, 64GB" required>
 
         <!-- Description -->
         <label for="desc">Description of item</label>
@@ -48,12 +48,12 @@ void SellPage::handleGet() {
 
         <!-- Starting price -->
         <label for="startPrice">Starting bid price</label>
-        <input id="startPrice" name="starting_price" type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="0.00" required />
+        <input id="startPrice" name="starting_price" type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="0.00" required>
         <p class="helper">Use cents if needed (e.g., 19.99).</p>
 
         <!-- Start date/time -->
         <label for="startAt">Starting date &amp; time</label>
-        <input id="startAt" name="start_datetime" type="datetime-local" required />
+        <input id="startAt" name="start_datetime" type="datetime-local" required>
         <p class="helper">The auction ends exactly <strong>7 days</strong> after this start time.</p>
 
         <div id="endReadout" class="muted" style="margin-top:4px;"></div>
@@ -120,7 +120,7 @@ void SellPage::handlePost() {
 
         std::cout << "  <div class='error' role='alert'>" << htmlEscape(errorMsg) << "</div>\n";
 
-        // Re-render form with preserved values (condition removed)
+        // Re-render form with preserved values (no condition field)
         std::cout << R"(
     <section class="card" aria-labelledby="sell-heading">
       <h2 id="sell-heading" style="margin-top:0;">Sell an Item</h2>
@@ -130,7 +130,7 @@ void SellPage::handlePost() {
         <label for="itemName">Item name</label>
         <input id="itemName" name="item_name" type="text" maxlength="120"
                placeholder="e.g., Nintendo Switch OLED, 64GB" required
-               value=")" << htmlEscape(itemName) << R"(" />
+               value=")" << htmlEscape(itemName) << R"(">
 
         <label for="desc">Description of item</label>
         <textarea id="desc" name="description" rows="6" required
@@ -139,11 +139,11 @@ void SellPage::handlePost() {
 
         <label for="startPrice">Starting bid price</label>
         <input id="startPrice" name="starting_price" type="number" inputmode="decimal" step="0.01" min="0.01"
-               placeholder="0.00" required value=")" << htmlEscape(startingPriceStr) << R"(" />
+               placeholder="0.00" required value=")" << htmlEscape(startingPriceStr) << R"(">
 
         <label for="startAt">Starting date &amp; time</label>
         <input id="startAt" name="start_datetime" type="datetime-local" required
-               value=")" << htmlEscape(startDatetime) << R"(" />
+               value=")" << htmlEscape(startDatetime) << R"(">
 
         <div style="display:flex; gap:10px; margin-top:12px;">
           <button class="btn primary" type="submit">List Item</button>
