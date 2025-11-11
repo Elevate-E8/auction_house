@@ -65,15 +65,14 @@ static bool runQueryAndPrint(
 }
 
 void TransactionsPage::handleGet() {
-    sendHTMLHeader();
-    printHead("My Transactions · Team Elevate", "content");
-
-    // Ensure user is logged in
+    // ✅ Redirect BEFORE sending any HTML so we don't need a <meta http-equiv="refresh"> in body
     if (!session_.isLoggedIn()) {
-        std::cout << "<meta http-equiv='refresh' content='0;url=login.cgi'>\n";
-        printTail("content");
+        std::cout << "Status: 302 Found\r\nLocation: login.cgi\r\n\r\n";
         return;
     }
+
+    sendHTMLHeader();
+    printHead("My Transactions · Team Elevate", "content");
 
     MYSQL* conn = db_.connection();
     if (!conn) {
@@ -122,7 +121,6 @@ void TransactionsPage::handleGet() {
 
         /* Current Bids layout fixes */
         .cbids{ table-layout:fixed; }
-        /* Column widths so the Action cell has space */
         .cbids col:nth-child(1){ width:38%; } /* Item */
         .cbids col:nth-child(2){ width:18%; } /* Current Leader */
         .cbids col:nth-child(3){ width:16%; } /* Highest Bid */
@@ -131,8 +129,8 @@ void TransactionsPage::handleGet() {
 
         .name-wrap{
           display:block;
-          white-space:normal;         /* allow multi-line */
-          overflow-wrap:anywhere;     /* break long words if needed */
+          white-space:normal;
+          overflow-wrap:anywhere;
           line-height:1.35;
         }
 
@@ -151,7 +149,7 @@ void TransactionsPage::handleGet() {
 )";
 
     // =====================================================
-    // SELLING  
+    // SELLING — extra columns + client-side PT formatting
     // =====================================================
     std::cout << R"(
     <section id="tab-selling" class="card tx-section active" aria-labelledby="Selling">
@@ -168,7 +166,8 @@ void TransactionsPage::handleGet() {
         const char* sql =
             "SELECT title, "
             "CASE WHEN end_time<NOW() THEN 'Closed' ELSE 'Active' END, "
-            "DATE_FORMAT(end_time,'%Y-%m-%d %H:%i') "
+            "DATE_FORMAT(end_time,'%m/%d/%Y %h:%i %p'), "
+            "UNIX_TIMESTAMP(end_time) "
             "FROM items WHERE seller_id=? ORDER BY end_time DESC";
         MYSQL_BIND p[1]; memset(p, 0, sizeof(p));
         p[0].buffer_type = MYSQL_TYPE_LONG; p[0].buffer = &userId; p[0].is_unsigned = 1;
@@ -177,7 +176,8 @@ void TransactionsPage::handleGet() {
             [&](MYSQL_BIND* res, unsigned long*) {
                 std::string title(htmlEscape((char*)res[0].buffer));
                 std::string status(htmlEscape((char*)res[1].buffer));
-                std::string ends(htmlEscape((char*)res[2].buffer));
+                std::string endsServer(htmlEscape((char*)res[2].buffer));
+                std::string epoch(htmlEscape((char*)res[3].buffer));
 
                 // Placeholders (backend will fill these later)
                 std::string leader = "—";
@@ -186,17 +186,17 @@ void TransactionsPage::handleGet() {
                 std::cout << "<tr>"
                           << "<td><span class='name-wrap'>" << title << "</span></td>"
                           << "<td>" << status << "</td>"
-                          << "<td>" << ends << "</td>"
+                          << "<td><time class='dt' data-epoch='" << epoch << "'>" << endsServer << "</time></td>"
                           << "<td>" << leader << "</td>"
                           << "<td>$" << highest << "</td>"
                           << "</tr>\n";
-            }, 3);
+            }, 4);
         if (!any) std::cout << "<tr><td colspan='5'>No listings.</td></tr>\n";
     }
     std::cout << "</tbody></table></section>\n";
 
     // =====================================================
-    // PURCHASES 
+    // PURCHASES (unchanged except client-side PT formatting)
     // =====================================================
     std::cout << R"(
     <section id="tab-purchases" class="card tx-section" aria-labelledby="Purchases">
@@ -209,7 +209,8 @@ void TransactionsPage::handleGet() {
         const char* sql =
             "SELECT i.title, "
             "IFNULL(FORMAT((SELECT bid_amount FROM bids WHERE bid_id=i.winning_bid_id),2),'0.00'), "
-            "DATE_FORMAT(i.end_time,'%Y-%m-%d %H:%i') "
+            "DATE_FORMAT(i.end_time,'%m/%d/%Y %h:%i %p'), "
+            "UNIX_TIMESTAMP(i.end_time) "
             "FROM items i WHERE i.winner_id=? ORDER BY i.end_time DESC";
         MYSQL_BIND p[1]; memset(p, 0, sizeof(p));
         p[0].buffer_type = MYSQL_TYPE_LONG; p[0].buffer = &userId; p[0].is_unsigned = 1;
@@ -218,15 +219,18 @@ void TransactionsPage::handleGet() {
             [&](MYSQL_BIND* res, unsigned long*) {
                 std::string title(htmlEscape((char*)res[0].buffer));
                 std::string bid(htmlEscape((char*)res[1].buffer));
-                std::string closed(htmlEscape((char*)res[2].buffer));
-                std::cout << "<tr><td><span class='name-wrap'>" << title << "</span></td><td>$" << bid << "</td><td>" << closed << "</td></tr>\n";
-            }, 3);
+                std::string closedServer(htmlEscape((char*)res[2].buffer));
+                std::string epoch(htmlEscape((char*)res[3].buffer));
+                std::cout << "<tr><td><span class='name-wrap'>" << title
+                          << "</span></td><td>$" << bid
+                          << "</td><td><time class='dt' data-epoch='" << epoch << "'>" << closedServer << "</time></td></tr>\n";
+            }, 4);
         if (!any) std::cout << "<tr><td colspan='3'>No purchases yet.</td></tr>\n";
     }
     std::cout << "</tbody></table></section>\n";
 
     // =====================================================
-    // CURRENT BIDS 
+    // CURRENT BIDS — layout fixes, item wraps
     // =====================================================
     std::cout << R"(
     <section id="tab-bids" class="card tx-section" aria-labelledby="Current Bids">
@@ -257,8 +261,7 @@ void TransactionsPage::handleGet() {
                 std::string title(htmlEscape((char*)res[1].buffer));
                 std::string highest(htmlEscape((char*)res[2].buffer));
                 std::string yourmax(htmlEscape((char*)res[3].buffer));
-
-                std::string leader = "—"; // backend will populate real leader
+                std::string leader = "—"; // backend to populate
 
                 std::cout << "<tr>\n"
                     << "  <td><span class='name-wrap'>" << title << "</span></td>\n"
@@ -281,7 +284,7 @@ void TransactionsPage::handleGet() {
     std::cout << "</tbody></table></section>\n";
 
     // =====================================================
-    // LOST 
+    // LOST (unchanged except client-side PT formatting)
     // =====================================================
     std::cout << R"(
     <section id="tab-lost" class="card tx-section" aria-labelledby="Didn't Win">
@@ -294,7 +297,8 @@ void TransactionsPage::handleGet() {
         const char* sql =
             "SELECT i.title, "
             "IFNULL(FORMAT((SELECT bid_amount FROM bids WHERE bid_id=i.winning_bid_id),2),'0.00'), "
-            "DATE_FORMAT(i.end_time,'%Y-%m-%d %H:%i') "
+            "DATE_FORMAT(i.end_time,'%m/%d/%Y %h:%i %p'), "
+            "UNIX_TIMESTAMP(i.end_time) "
             "FROM items i WHERE i.winner_id IS NOT NULL AND i.winner_id<>? "
             "AND EXISTS(SELECT 1 FROM bids b WHERE b.item_id=i.item_id AND b.bidder_id=?) "
             "ORDER BY i.end_time DESC";
@@ -306,15 +310,18 @@ void TransactionsPage::handleGet() {
             [&](MYSQL_BIND* res, unsigned long*) {
                 std::string title(htmlEscape((char*)res[0].buffer));
                 std::string bid(htmlEscape((char*)res[1].buffer));
-                std::string closed(htmlEscape((char*)res[2].buffer));
-                std::cout << "<tr><td><span class='name-wrap'>" << title << "</span></td><td>$" << bid << "</td><td>" << closed << "</td></tr>\n";
-            }, 3);
+                std::string closedServer(htmlEscape((char*)res[2].buffer));
+                std::string epoch(htmlEscape((char*)res[3].buffer));
+                std::cout << "<tr><td><span class='name-wrap'>" << title
+                          << "</span></td><td>$" << bid
+                          << "</td><td><time class='dt' data-epoch='" << epoch << "'>" << closedServer << "</time></td></tr>\n";
+            }, 4);
         if (!any) std::cout << "<tr><td colspan='3'>No lost auctions.</td></tr>\n";
     }
     std::cout << "</tbody></table></section>\n";
 
     // ---------------------------------------------------------------------
-    // Tiny JS to switch tabs & sync with ?tab=
+    // JS: tab switcher + Pacific Time formatter
     // ---------------------------------------------------------------------
     std::cout << R"(
     <script>
@@ -343,6 +350,21 @@ void TransactionsPage::handleGet() {
         var id = 'tab-' + initial;
         if(document.getElementById(id)) activate(id);
       }
+    })();
+    // Pacific Time (California) formatter for <time class="dt" data-epoch="...">
+    (function(){
+      var fmt = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Los_Angeles',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: true
+      });
+      document.querySelectorAll('time.dt[data-epoch]').forEach(function(t){
+        var sec = Number(t.getAttribute('data-epoch'));
+        if (!isNaN(sec)) {
+          var d = new Date(sec * 1000);
+          t.textContent = fmt.format(d);
+        }
+      });
     })();
     </script>
 )";
