@@ -55,7 +55,7 @@ void LogoutPage::handleGet() {
         << "    <section class='card' role='status' aria-live='polite'>\n"
         << "      <h1>✓ Signed out</h1>\n"
         << "      <p class='muted'>Your session has ended. We’re taking you back to the homepage…</p>\n"
-        << "      <meta http-equiv='refresh' content='2;url=index.cgi'>\n"
+        << "      <script>setTimeout(() => window.location.href='index.cgi', 2000);</script>\n";
         << "      <a class='btn primary' href='index.cgi'>Go to Home</a>\n"
         << "    </section>\n";
     printTail("auth");
