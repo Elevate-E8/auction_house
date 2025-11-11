@@ -65,7 +65,7 @@ static bool runQueryAndPrint(
 }
 
 void TransactionsPage::handleGet() {
-    // ✅ Redirect BEFORE sending any HTML so we don't need a <meta http-equiv="refresh"> in body
+    // Redirect BEFORE sending any HTML so we don't need a <meta http-equiv="refresh"> in body
     if (!session_.isLoggedIn()) {
         std::cout << "Status: 302 Found\r\nLocation: login.cgi\r\n\r\n";
         return;
@@ -89,7 +89,8 @@ void TransactionsPage::handleGet() {
     // ---------------------------------------------------------------------
     std::cout << R"(
     <section class="card">
-      <h2 style="margin:0 0 8px">My Transactions</h2>
+      
+      <h1 style="margin:0 0 8px">My Transactions</h1>
       <p class="muted">Your selling activity, purchases, current bids, and items you didn't win.</p>
 
       <div role="tablist" aria-label="Transactions Tabs" class="tx-tabs" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
@@ -149,7 +150,7 @@ void TransactionsPage::handleGet() {
 )";
 
     // =====================================================
-    // SELLING — extra columns + client-side PT formatting
+    // SELLING 
     // =====================================================
     std::cout << R"(
     <section id="tab-selling" class="card tx-section active" aria-labelledby="Selling">
@@ -196,7 +197,7 @@ void TransactionsPage::handleGet() {
     std::cout << "</tbody></table></section>\n";
 
     // =====================================================
-    // PURCHASES (unchanged except client-side PT formatting)
+    // PURCHASES
     // =====================================================
     std::cout << R"(
     <section id="tab-purchases" class="card tx-section" aria-labelledby="Purchases">
@@ -230,7 +231,7 @@ void TransactionsPage::handleGet() {
     std::cout << "</tbody></table></section>\n";
 
     // =====================================================
-    // CURRENT BIDS — layout fixes, item wraps
+    // CURRENT BIDS 
     // =====================================================
     std::cout << R"(
     <section id="tab-bids" class="card tx-section" aria-labelledby="Current Bids">
@@ -284,7 +285,7 @@ void TransactionsPage::handleGet() {
     std::cout << "</tbody></table></section>\n";
 
     // =====================================================
-    // LOST (unchanged except client-side PT formatting)
+    // LOST 
     // =====================================================
     std::cout << R"(
     <section id="tab-lost" class="card tx-section" aria-labelledby="Didn't Win">
