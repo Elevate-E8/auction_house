@@ -102,15 +102,25 @@ void TransactionsPage::handleGet() {
 
       <style>
         .tx-tab{
-          border:1px solid var(--border);
-          background:#fff;
-          padding:8px 14px; border-radius:999px;
-          font-weight:700; cursor:pointer;
+          background: var(--brand);
+          color: #fff;
+          border: none;
+          padding: 10px 14px;
+          border-radius: 10px;
+          font-weight:700; 
+          cursor:pointer;
         }
-        .tx-tab[aria-selected="true"]{
-          outline:2px solid #fb923c;
-          outline-offset:2px;
+
+        .tx-tab[aria-selected="true"] {
+          outline: 2px solid var(--brand);
+          outline-offset: 2px;
+          filter: brightness(1.15);
         }
+
+        .tx-tab:hover {
+          filter: brightness(1.05);
+        }
+
         .tx-section{ display:none; margin-top:16px; }
         .tx-section.active{ display:block; }
         .muted{ color:#6b7280; }
@@ -133,14 +143,6 @@ void TransactionsPage::handleGet() {
           white-space:normal;
           overflow-wrap:anywhere;
           line-height:1.35;
-        }
-
-        /* >>> Added: wrap long emails in Current Leader column <<< */
-        .cbids td:nth-child(2){
-          white-space: normal;
-          overflow-wrap: anywhere;
-          word-break: break-word;
-          line-height: 1.35;
         }
 
         .action-cell{
@@ -255,15 +257,17 @@ void TransactionsPage::handleGet() {
     <section id="tab-bids" class="card tx-section" aria-labelledby="Current Bids">
       <h3 style="margin-top:0">Current Bids</h3>
       <table class="cbids" aria-label="Current bids">
-        <colgroup><col><col><col><col><col></colgroup>
+        <colgroup><col><col><col><col><col><col></colgroup>
         <thead>
-          <tr><th>Item</th><th>Current Leader</th><th>Highest Bid</th><th>Your Max</th><th>Action</th></tr>
+          <tr><th>Item</th><th>Ends</th><th>Current Leader</th><th>Highest Bid</th><th>Your Max</th><th>Action</th></tr>
         </thead>
         <tbody>
 )";
     {
         const char* sql =
             "SELECT i.item_id, i.title, "
+            "DATE_FORMAT(i.end_time,'%m/%d/%Y %h:%i %p') AS end_str, "
+            "UNIX_TIMESTAMP(i.end_time) AS epoch, "
             "IFNULL(u.user_email,'—') AS current_leader, "
             "IFNULL(FORMAT((SELECT MAX(b2.bid_amount) FROM bids b2 WHERE b2.item_id=i.item_id),2),'0.00') AS highest_bid, "
             "IFNULL(FORMAT((SELECT MAX(b1.bid_amount) FROM bids b1 WHERE b1.item_id=i.item_id AND b1.bidder_id=?),2),'0.00') AS your_max "
@@ -281,15 +285,20 @@ void TransactionsPage::handleGet() {
             [&](MYSQL_BIND* res, unsigned long*) {
                 std::string item_id(htmlEscape((char*)res[0].buffer));
                 std::string title(htmlEscape((char*)res[1].buffer));
-                std::string leader(htmlEscape((char*)res[2].buffer));
-                std::string highest(htmlEscape((char*)res[3].buffer));
-                std::string yourmax(htmlEscape((char*)res[4].buffer));
+                std::string endsServer(htmlEscape((char*)res[2].buffer));
+                std::string epoch(htmlEscape((char*)res[3].buffer));
+                std::string leader(htmlEscape((char*)res[4].buffer));
+                std::string highest(htmlEscape((char*)res[5].buffer));
+                std::string yourmax(htmlEscape((char*)res[6].buffer));
 
                 std::cout << "<tr>\n"
-                    << "  <td><span class='name-wrap'>" << title << "</span></td>\n"
-                    << "  <td>" << leader << "</td>\n"
-                    << "  <td>$" << highest << "</td>\n"
-                    << "  <td>$" << yourmax << "</td>\n"
+                    << "  <td title='" << title << "'><span class='name-wrap'>" << title << "</span></td>\n"
+                    << "  <td title='" << endsServer << "'>"
+                    << "    <time class='dt' data-epoch='" << epoch << "'>" << endsServer << "</time>"
+                    << "  </td>\n"
+                    << "  <td title='" << leader << "'>" << leader << "</td>\n"
+                    << "  <td title='$" << highest << "'>$" << highest << "</td>\n"
+                    << "  <td title='$" << yourmax << "'>$" << yourmax << "</td>\n"
                     << "  <td>\n"
                     << "    <div class='action-cell'>\n"
                     << "      <form class='inline-form' action='bid.cgi' method='post'>\n"
@@ -300,7 +309,7 @@ void TransactionsPage::handleGet() {
                     << "    </div>\n"
                     << "  </td>\n"
                     << "</tr>\n";
-            }, 5);
+            }, 7);
         if (!any) std::cout << "<tr><td colspan='5'>No active bids.</td></tr>\n";
     }
     std::cout << "</tbody></table></section>\n";
