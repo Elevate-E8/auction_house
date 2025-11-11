@@ -75,6 +75,9 @@ void Page::printHead(const std::string& title, const std::string& mode) const {
             << "        <a href='logout.cgi'>Logout</a>\n";
     } else {
         std::cout
+            << "        <a href='browse.cgi'>Browse Auctions</a>\n"
+            << "        <a href='bid.cgi'>Bid</a>\n"
+            << "        <a href='sell.cgi'>Sell</a>\n"
             << "        <a href='login.cgi'>Login</a>\n"
             << "        <a href='register.cgi'>Register</a>\n";
     }
