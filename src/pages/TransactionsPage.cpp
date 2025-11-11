@@ -165,13 +165,21 @@ void TransactionsPage::handleGet() {
 )";
     {
         const char* sql =
-            "SELECT title, "
-            "CASE WHEN end_time<NOW() THEN 'Closed' ELSE 'Active' END, "
-            "DATE_FORMAT(end_time,'%m/%d/%Y %h:%i %p'), "
-            "UNIX_TIMESTAMP(end_time) "
-            "FROM items WHERE seller_id=? ORDER BY end_time DESC";
+            "SELECT i.title, "
+            "CASE WHEN i.end_time<NOW() THEN 'Closed' ELSE 'Active' END AS status, "
+            "DATE_FORMAT(i.end_time,'%m/%d/%Y %h:%i %p') AS end_str, "
+            "UNIX_TIMESTAMP(i.end_time) AS epoch, "
+            "IFNULL(FORMAT((SELECT MAX(b.bid_amount) FROM bids b WHERE b.item_id=i.item_id),2),'0.00') AS highest_bid, "
+            "IFNULL(u.user_email,'—') AS current_bidder "
+            "FROM items i "
+            "LEFT JOIN users u ON u.user_id = i.winner_id "
+            "WHERE i.seller_id=? "
+            "ORDER BY i.end_time DESC";
+
         MYSQL_BIND p[1]; memset(p, 0, sizeof(p));
-        p[0].buffer_type = MYSQL_TYPE_LONG; p[0].buffer = &userId; p[0].is_unsigned = 1;
+        p[0].buffer_type = MYSQL_TYPE_LONG;
+        p[0].buffer = &userId;
+        p[0].is_unsigned = 1;
 
         bool any = runQueryAndPrint(conn, sql, p, 1,
             [&](MYSQL_BIND* res, unsigned long*) {
@@ -179,19 +187,18 @@ void TransactionsPage::handleGet() {
                 std::string status(htmlEscape((char*)res[1].buffer));
                 std::string endsServer(htmlEscape((char*)res[2].buffer));
                 std::string epoch(htmlEscape((char*)res[3].buffer));
-
-                // Placeholders (backend will fill these later)
-                std::string leader = "—";
-                std::string highest = "0.00";
+                std::string highest(htmlEscape((char*)res[4].buffer));
+                std::string bidder(htmlEscape((char*)res[5].buffer));
 
                 std::cout << "<tr>"
-                          << "<td><span class='name-wrap'>" << title << "</span></td>"
-                          << "<td>" << status << "</td>"
-                          << "<td><time class='dt' data-epoch='" << epoch << "'>" << endsServer << "</time></td>"
-                          << "<td>" << leader << "</td>"
-                          << "<td>$" << highest << "</td>"
-                          << "</tr>\n";
-            }, 4);
+                    << "<td><span class='name-wrap'>" << title << "</span></td>"
+                    << "<td>" << status << "</td>"
+                    << "<td><time class='dt' data-epoch='" << epoch << "'>" << endsServer << "</time></td>"
+                    << "<td>" << bidder << "</td>"
+                    << "<td>$" << highest << "</td>"
+                    << "</tr>\n";
+            }, 6);
+
         if (!any) std::cout << "<tr><td colspan='5'>No listings.</td></tr>\n";
     }
     std::cout << "</tbody></table></section>\n";
@@ -212,7 +219,10 @@ void TransactionsPage::handleGet() {
             "IFNULL(FORMAT((SELECT bid_amount FROM bids WHERE bid_id=i.winning_bid_id),2),'0.00'), "
             "DATE_FORMAT(i.end_time,'%m/%d/%Y %h:%i %p'), "
             "UNIX_TIMESTAMP(i.end_time) "
-            "FROM items i WHERE i.winner_id=? ORDER BY i.end_time DESC";
+            "FROM items i "
+            "WHERE i.winner_id=? AND i.end_time < NOW() "
+            "ORDER BY i.end_time DESC";
+
         MYSQL_BIND p[1]; memset(p, 0, sizeof(p));
         p[0].buffer_type = MYSQL_TYPE_LONG; p[0].buffer = &userId; p[0].is_unsigned = 1;
 
@@ -246,9 +256,12 @@ void TransactionsPage::handleGet() {
     {
         const char* sql =
             "SELECT i.item_id, i.title, "
-            "IFNULL(FORMAT((SELECT MAX(b2.bid_amount) FROM bids b2 WHERE b2.item_id=i.item_id),2),'0.00'), "
-            "IFNULL(FORMAT((SELECT MAX(b1.bid_amount) FROM bids b1 WHERE b1.item_id=i.item_id AND b1.bidder_id=?),2),'0.00') "
-            "FROM items i WHERE i.end_time>NOW() "
+            "IFNULL(u.user_email,'—') AS current_leader, "
+            "IFNULL(FORMAT((SELECT MAX(b2.bid_amount) FROM bids b2 WHERE b2.item_id=i.item_id),2),'0.00') AS highest_bid, "
+            "IFNULL(FORMAT((SELECT MAX(b1.bid_amount) FROM bids b1 WHERE b1.item_id=i.item_id AND b1.bidder_id=?),2),'0.00') AS your_max "
+            "FROM items i "
+            "LEFT JOIN users u ON u.user_id = i.winner_id "
+            "WHERE i.end_time>NOW() "
             "AND EXISTS(SELECT 1 FROM bids bx WHERE bx.item_id=i.item_id AND bx.bidder_id=?) "
             "ORDER BY i.end_time ASC";
 
@@ -260,9 +273,9 @@ void TransactionsPage::handleGet() {
             [&](MYSQL_BIND* res, unsigned long*) {
                 std::string item_id(htmlEscape((char*)res[0].buffer));
                 std::string title(htmlEscape((char*)res[1].buffer));
-                std::string highest(htmlEscape((char*)res[2].buffer));
-                std::string yourmax(htmlEscape((char*)res[3].buffer));
-                std::string leader = "—"; // backend to populate
+                std::string leader(htmlEscape((char*)res[2].buffer));
+                std::string highest(htmlEscape((char*)res[3].buffer));
+                std::string yourmax(htmlEscape((char*)res[4].buffer));
 
                 std::cout << "<tr>\n"
                     << "  <td><span class='name-wrap'>" << title << "</span></td>\n"
@@ -279,7 +292,7 @@ void TransactionsPage::handleGet() {
                     << "    </div>\n"
                     << "  </td>\n"
                     << "</tr>\n";
-            }, 4);
+            }, 5);
         if (!any) std::cout << "<tr><td colspan='5'>No active bids.</td></tr>\n";
     }
     std::cout << "</tbody></table></section>\n";
@@ -300,7 +313,10 @@ void TransactionsPage::handleGet() {
             "IFNULL(FORMAT((SELECT bid_amount FROM bids WHERE bid_id=i.winning_bid_id),2),'0.00'), "
             "DATE_FORMAT(i.end_time,'%m/%d/%Y %h:%i %p'), "
             "UNIX_TIMESTAMP(i.end_time) "
-            "FROM items i WHERE i.winner_id IS NOT NULL AND i.winner_id<>? "
+            "FROM items i "
+            "WHERE i.winner_id IS NOT NULL "
+            "AND i.winner_id<>? "
+            "AND i.end_time < NOW() "
             "AND EXISTS(SELECT 1 FROM bids b WHERE b.item_id=i.item_id AND b.bidder_id=?) "
             "ORDER BY i.end_time DESC";
         MYSQL_BIND params[2]; memset(params, 0, sizeof(params));
