@@ -52,12 +52,22 @@ void IndexPage::handleGet() {
     a:focus-visible, button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
     .container { max-width: 1100px; margin-inline: auto; padding-inline: 20px; }
     .visually-hidden { position: absolute; clip: rect(0 0 0 0); clip-path: inset(50%); width: 1px; height: 1px; overflow: hidden; white-space: nowrap; }
+
+    /* Keep skip-link in markup, but never show it */
     .skip-link {
-      position: absolute; left: 12px; top: -40px;
-      background: var(--brand); color: #fff; padding: 8px 12px; border-radius: 10px;
-      transition: top .2s ease;
+      position: absolute;
+      left: -9999px;       /* off-screen */
+      top: auto;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
     }
-    .skip-link:focus { top: 12px; }
+    .skip-link:hover,
+    .skip-link:focus,
+    .skip-link:focus-visible {
+      left: -9999px;       /* prevent drop-down reveal */
+      top: auto;
+    }
 
     header {
       background: linear-gradient(135deg, #111827, #1f2937 50%, #111827);
