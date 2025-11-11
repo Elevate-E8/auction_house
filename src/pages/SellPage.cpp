@@ -40,25 +40,6 @@ void SellPage::handleGet() {
         <input id="itemName" name="item_name" type="text" maxlength="120"
                placeholder="e.g., Nintendo Switch OLED, 64GB" required />
 
-        <!-- Condition -->
-        <label for="cond">Condition</label>
-        <select id="cond" name="condition" required
-                style="width:100%; padding:12px 14px; border:1px solid var(--border); border-radius:12px; font-size:15px; background:#fff;">
-          <option value="" disabled selected>Select condition…</option>
-          <option value="new">New</option>
-          <option value="like_new">Like New</option>
-          <option value="good">Good</option>
-          <option value="fair">Fair</option>
-          <option value="poor">Poor</option>
-        </select>
-        <ol class="helper" style="margin:6px 0 12px 18px;">
-          <li><strong>New</strong> — Unused and unopened in original packaging.</li>
-          <li><strong>Like New</strong> — Lightly used with no visible damage.</li>
-          <li><strong>Good</strong> — Gently used with minor flaws.</li>
-          <li><strong>Fair</strong> — Well-used with visible signs of wear.</li>
-          <li><strong>Poor</strong> — Heavily worn, may only be usable for parts.</li>
-        </ol>
-
         <!-- Description -->
         <label for="desc">Description of item</label>
         <textarea id="desc" name="description" rows="6" required
@@ -90,16 +71,9 @@ void SellPage::handleGet() {
       var readout = document.getElementById('endReadout');
       function pad(n){ return (n < 10 ? '0' : '') + n; }
       function fmt(dt){
-        var month = pad(dt.getMonth()+1);
-        var day = pad(dt.getDate());
-        var year = dt.getFullYear();
-        var hour = dt.getHours();
-        var minute = pad(dt.getMinutes());
-        var ampm = hour >= 12 ? ' PM' : ' AM';
-        if (hour > 12) hour -= 12;
-        if (hour === 0) hour = 12;
-        return month + '/' + day + '/' + year + ' ' + hour + ':' + minute + ampm;
-    }
+        return dt.getFullYear() + '-' + pad(dt.getMonth()+1) + '-' + pad(dt.getDate())
+             + ' ' + pad(dt.getHours()) + ':' + pad(dt.getMinutes());
+      }
       function update(){
         if (!start || !start.value) { readout.textContent = ''; return; }
         var s = new Date(start.value);
@@ -131,7 +105,6 @@ void SellPage::handlePost() {
 
     // Get form data
     std::string itemName = postData_["item_name"];
-    std::string condition = postData_["condition"];
     std::string description = postData_["description"];
     std::string startingPriceStr = postData_["starting_price"];
     std::string startDatetime = postData_["start_datetime"];
@@ -147,7 +120,7 @@ void SellPage::handlePost() {
 
         std::cout << "  <div class='error' role='alert'>" << htmlEscape(errorMsg) << "</div>\n";
 
-        // Re-render form with preserved values
+        // Re-render form with preserved values (condition removed)
         std::cout << R"(
     <section class="card" aria-labelledby="sell-heading">
       <h2 id="sell-heading" style="margin-top:0;">Sell an Item</h2>
@@ -158,29 +131,6 @@ void SellPage::handlePost() {
         <input id="itemName" name="item_name" type="text" maxlength="120"
                placeholder="e.g., Nintendo Switch OLED, 64GB" required
                value=")" << htmlEscape(itemName) << R"(" />
-
-        <label for="cond">Condition</label>
-        <select id="cond" name="condition" required
-                style="width:100%; padding:12px 14px; border:1px solid var(--border); border-radius:12px; font-size:15px; background:#fff;">
-          <option value="" disabled)";
-        if (condition.empty()) std::cout << " selected";
-        std::cout << R"(>Select condition…</option>
-          <option value="new")";
-        if (condition == "new") std::cout << " selected";
-        std::cout << R"(>New</option>
-          <option value="like_new")";
-        if (condition == "like_new") std::cout << " selected";
-        std::cout << R"(>Like New</option>
-          <option value="good")";
-        if (condition == "good") std::cout << " selected";
-        std::cout << R"(>Good</option>
-          <option value="fair")";
-        if (condition == "fair") std::cout << " selected";
-        std::cout << R"(>Fair</option>
-          <option value="poor")";
-        if (condition == "poor") std::cout << " selected";
-        std::cout << R"(>Poor</option>
-        </select>
 
         <label for="desc">Description of item</label>
         <textarea id="desc" name="description" rows="6" required
@@ -208,11 +158,6 @@ void SellPage::handlePost() {
     // Validate inputs
     if (itemName.empty() || itemName.length() > 100) {
         showFormWithError("Item name is required and must be 100 characters or less.");
-        return;
-    }
-
-    if (condition.empty()) {
-        showFormWithError("Please select a condition.");
         return;
     }
 
@@ -380,31 +325,12 @@ void SellPage::handlePost() {
     char priceBuffer[32];
     std::snprintf(priceBuffer, sizeof(priceBuffer), "%.2f", startingPrice);
 
-    // Parse and format datetime to MM/DD/YYYY h:MM AM/PM
+    // Format datetime for display (remove T, make it readable)
     std::string displayDatetime = startDatetime;
     size_t tDisplay = displayDatetime.find('T');
     if (tDisplay != std::string::npos) {
-       displayDatetime[tDisplay] = ' ';
+        displayDatetime[tDisplay] = ' ';
     }
-
-    // Parse YYYY-MM-DD HH:MM format
-    if (displayDatetime.length() >= 16) {
-        std::string year = displayDatetime.substr(0, 4);
-        std::string month = displayDatetime.substr(5, 2);
-        std::string day = displayDatetime.substr(8, 2);
-        std::string hourStr = displayDatetime.substr(11, 2);
-        std::string minute = displayDatetime.substr(14, 2);
-
-        int hour = std::stoi(hourStr);
-        std::string ampm = (hour >= 12) ? " PM" : " AM";
-        if (hour > 12) hour -= 12;
-        if (hour == 0) hour = 12;
-
-    // Format as MM/DD/YYYY h:MM AM/PM
-    displayDatetime = month + "/" + day + "/" + year + " "
-                    + std::to_string(hour) + ":" + minute + ampm;
-    }
-
 
     std::cout << R"(
     <section class="card" role="status" aria-live="polite">
