@@ -388,7 +388,7 @@ void BidPage::renderForm(const std::vector<ItemOption>& items,
            value=")";
 
     // fill in prior input safely
-    std::cout << htmlEscape(enteredAmount) << R"(" />
+    std::cout << htmlEscape(enteredAmount) << R"(" >
 
     <div style="display:flex; gap:10px; margin-top:16px;">
 )";
