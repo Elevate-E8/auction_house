@@ -228,6 +228,81 @@ void BidPage::handlePost() {
     }
     mysql_stmt_close(stmt);
 
+    //
+    // Update for items table
+    //
+    // 1) Find current top bid for this item
+    const char* sqlTop =
+        "SELECT bid_id, bidder_id "
+        "FROM bids "
+        "WHERE item_id = ? "
+        "ORDER BY bid_amount DESC, bid_time ASC "
+        "LIMIT 1";
+
+    MYSQL_STMT* topStmt = mysql_stmt_init(conn);
+    if (topStmt && mysql_stmt_prepare(topStmt, sqlTop, std::strlen(sqlTop)) == 0) {
+        MYSQL_BIND topParam[1];
+        std::memset(topParam, 0, sizeof(topParam));
+        topParam[0].buffer_type = MYSQL_TYPE_LONG;
+        topParam[0].buffer = &itemId;
+        topParam[0].is_unsigned = 1;
+        mysql_stmt_bind_param(topStmt, topParam);
+
+        long topBidId = 0;
+        long topBidderId = 0;
+
+        MYSQL_BIND topRes[2];
+        std::memset(topRes, 0, sizeof(topRes));
+        topRes[0].buffer_type = MYSQL_TYPE_LONG;
+        topRes[0].buffer = &topBidId;
+        topRes[0].is_unsigned = 1;
+        topRes[1].buffer_type = MYSQL_TYPE_LONG;
+        topRes[1].buffer = &topBidderId;
+        topRes[1].is_unsigned = 1;
+        mysql_stmt_bind_result(topStmt, topRes);
+
+        if (mysql_stmt_execute(topStmt) == 0 &&
+            mysql_stmt_fetch(topStmt) == 0 &&
+            topBidId > 0 && topBidderId > 0) {
+
+            mysql_stmt_close(topStmt);
+
+            // 2) Update items with current leading bid + bidder
+            const char* sqlUpdate =
+                "UPDATE items "
+                "SET winning_bid_id = ?, winner_id = ? "
+                "WHERE item_id = ?";
+
+            MYSQL_STMT* upStmt = mysql_stmt_init(conn);
+            if (upStmt && mysql_stmt_prepare(upStmt, sqlUpdate, std::strlen(sqlUpdate)) == 0) {
+                MYSQL_BIND upParam[3];
+                std::memset(upParam, 0, sizeof(upParam));
+
+                upParam[0].buffer_type = MYSQL_TYPE_LONG;
+                upParam[0].buffer = &topBidId;
+                upParam[0].is_unsigned = 1;
+
+                upParam[1].buffer_type = MYSQL_TYPE_LONG;
+                upParam[1].buffer = &topBidderId;
+                upParam[1].is_unsigned = 1;
+
+                upParam[2].buffer_type = MYSQL_TYPE_LONG;
+                upParam[2].buffer = &itemId;
+                upParam[2].is_unsigned = 1;
+
+                mysql_stmt_bind_param(upStmt, upParam);
+                mysql_stmt_execute(upStmt);
+            }
+            if (upStmt) mysql_stmt_close(upStmt);
+        }
+        else {
+            mysql_stmt_close(topStmt);
+        }
+    }
+    else if (topStmt) {
+        mysql_stmt_close(topStmt);
+    }
+
     // (Optional) You could refresh items and show success
     auto items = fetchActiveItemsExcludingSeller(userId);
     char ok[128]; std::snprintf(ok, sizeof(ok), "Your bid of $%.2f has been placed.", amount);
