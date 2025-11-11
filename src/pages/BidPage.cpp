@@ -258,20 +258,29 @@ void BidPage::renderForm(const std::vector<ItemOption>& items,
             << htmlEscape(session_.userEmail()) << "</strong></div>\n";
     }
 
-    if (!flashError.empty())
-        std::cout << "  <div class='error' role='alert'>" << htmlEscape(flashError) << "</div>\n";
-    if (!flashSuccess.empty())
-        std::cout << "  <div class='success' role='status'>" << htmlEscape(flashSuccess) << "</div>\n";
+    if (!flashError.empty()) {
+        std::cout << "  <div class='error' role='alert'>"
+            << htmlEscape(flashError) << "</div>\n";
+    }
+    if (!flashSuccess.empty()) {
+        std::cout << "  <div class='success' role='status'>"
+            << htmlEscape(flashSuccess) << "</div>\n";
+    }
 
     std::cout << R"(
 <section class="card" aria-labelledby="bid-heading">
   <h2 id="bid-heading" style="margin-top:0;">Bid on an Item</h2>
-  <p class="helper">Choose an active listing and enter your highest bid. You cannot bid on your own items.</p>
+  <p class="helper">
+    Choose an active listing and enter your highest bid.
+    You cannot bid on your own items.
+  </p>
 )";
 
     if (items.empty()) {
         std::cout << R"(
-  <div class="muted">There are no eligible items available to bid on right now.</div>
+  <div class="muted">
+    There are no eligible items available to bid on right now.
+  </div>
 </section>
 )";
         printTail();
@@ -289,7 +298,9 @@ void BidPage::renderForm(const std::vector<ItemOption>& items,
 
     for (const auto& it : items) {
         std::cout << "      <option value='" << it.id << "'";
-        if (selectedItemId == it.id) std::cout << " selected";
+        if (selectedItemId == it.id) {
+            std::cout << " selected";
+        }
         std::cout << ">" << htmlEscape(it.title) << "</option>\n";
     }
 
@@ -300,7 +311,14 @@ void BidPage::renderForm(const std::vector<ItemOption>& items,
     <input id="bidAmount" name="bid_amount" type="number" inputmode="decimal"
            step="0.01" min="0.01" placeholder="0.00" required
            value=")";
-    // Submit button with optional disabled for not-logged-in users
+
+    // fill in prior input safely
+    std::cout << htmlEscape(enteredAmount) << R"(" />
+
+    <div style="display:flex; gap:10px; margin-top:16px;">
+)";
+
+    // Submit button (disable if not logged in)
     std::cout << "      <button class='btn primary' type='submit'";
     if (!loggedIn) {
         std::cout << " disabled";
