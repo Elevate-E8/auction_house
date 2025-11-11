@@ -135,6 +135,14 @@ void TransactionsPage::handleGet() {
           line-height:1.35;
         }
 
+        /* >>> Added: wrap long emails in Current Leader column <<< */
+        .cbids td:nth-child(2){
+          white-space: normal;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          line-height: 1.35;
+        }
+
         .action-cell{
           display:flex;
           align-items:center;
